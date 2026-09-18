@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -11,6 +11,24 @@ router = APIRouter(
     prefix="/onboarding",
     tags=["Onboarding"]
 )
+
+
+@router.get("/me", response_model=OnboardingResponse)
+def get_onboarding_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    profile = (
+        db.query(UserProfile)
+        .filter(UserProfile.user_id == current_user.id)
+        .first()
+    )
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Onboarding profile not found"
+        )
+    return profile
 
 
 @router.post("/complete", response_model=OnboardingResponse)
@@ -53,4 +71,4 @@ def complete_onboarding(
     db.commit()
     db.refresh(profile)
 
-    return profile
+    return profile
