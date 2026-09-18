@@ -1,4 +1,25 @@
-.venv/
-venv/
+# Environment
+.env
+.env.*
+!.env.example
 
-client/node_modules
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+venv/
+.venv/
+
+# Testing / tooling
+.pytest_cache/
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
