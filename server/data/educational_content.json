@@ -1,0 +1,148 @@
+{
+  "resources": [
+    {
+      "id": "res_set_theory_1",
+      "concept_id": "set_theory",
+      "title": "Set Theory Essentials for Relational Databases",
+      "resource_type": "article",
+      "url_or_ref": "https://en.wikipedia.org/wiki/Relational_algebra",
+      "content_snippet": "Relational algebra treats tables as sets of tuples. UNION combines rows from both sets (eliminating duplicates), INTERSECT extracts only overlapping rows, and EXCEPT/MINUS returns elements in the first set but absent from the second. The Cartesian Product (CROSS JOIN) forms all possible ordered pairs (A x B). Understanding set operations is essential before mastering relational joins.",
+      "estimated_minutes": 15,
+      "difficulty": "beginner",
+      "tags": ["sets", "union", "cartesian product", "relational algebra", "cross join"]
+    },
+    {
+      "id": "res_keys_1",
+      "concept_id": "relational_keys",
+      "title": "Primary Keys, Foreign Keys & Referential Integrity",
+      "resource_type": "article",
+      "url_or_ref": "https://postgresql.org/docs/current/ddl-constraints.html",
+      "content_snippet": "A Primary Key uniquely identifies each row in a table (non-null and unique). A Foreign Key in a child table points directly to the Primary Key of a parent table, establishing a 1-to-many or 1-to-1 relationship. Foreign Key constraints enforce referential integrity: you cannot insert a foreign key value that does not exist in the parent table, and you cannot delete a parent record if child records still reference it (without ON DELETE CASCADE).",
+      "estimated_minutes": 15,
+      "difficulty": "beginner",
+      "tags": ["primary key", "foreign key", "referential integrity", "relationships", "constraints"]
+    },
+    {
+      "id": "res_sql_basics_1",
+      "concept_id": "sql_basics",
+      "title": "SQL Query Order of Execution (FROM, WHERE, GROUP BY, HAVING, SELECT, ORDER BY)",
+      "resource_type": "cheat_sheet",
+      "url_or_ref": "https://sqlbolt.com/lesson/select_queries_order_of_execution",
+      "content_snippet": "SQL queries are NOT executed in the order they are written! The database engine executes in this strict sequence: 1. FROM & JOINs (get data) -> 2. WHERE (filter rows) -> 3. GROUP BY (aggregate) -> 4. HAVING (filter groups) -> 5. SELECT (choose columns/aliases) -> 6. DISTINCT -> 7. ORDER BY (sort) -> 8. LIMIT / OFFSET. This is why column aliases defined in SELECT cannot be used inside WHERE clauses.",
+      "estimated_minutes": 10,
+      "difficulty": "beginner",
+      "tags": ["order of execution", "select", "where", "order by", "sql syntax", "limit"]
+    },
+    {
+      "id": "res_sql_joins_1",
+      "concept_id": "sql_joins",
+      "title": "Visual Guide to SQL Joins: INNER, LEFT, RIGHT, and FULL OUTER",
+      "resource_type": "video",
+      "url_or_ref": "https://youtube.com/watch?v=9yeOJ0ZMUYw",
+      "content_snippet": "INNER JOIN returns only rows with matches in both tables (intersection). LEFT JOIN returns all rows from the left table, plus matched rows from the right table; if no match exists, the right side returns NULL. FULL OUTER JOIN combines all rows from both tables, populating NULLs on either side when no match is found. Best practice: always verify which column uniquely joins the tables (e.g. ON c.id = o.customer_id) to avoid accidental Cartesian products.",
+      "estimated_minutes": 20,
+      "difficulty": "intermediate",
+      "tags": ["joins", "inner join", "left join", "null handling", "foreign keys", "combining tables"]
+    },
+    {
+      "id": "res_sql_joins_2",
+      "concept_id": "sql_joins",
+      "title": "Hands-on Practice: Multi-Table Joins & NULL Filtering",
+      "resource_type": "interactive_exercise",
+      "url_or_ref": "https://leetcode.com/problemset/database/",
+      "content_snippet": "Real-world query pattern: To find customers who NEVER placed an order, perform a LEFT JOIN and filter for NULL foreign keys: SELECT c.name FROM customers c LEFT JOIN orders o ON c.id = o.customer_id WHERE o.id IS NULL; This 'Anti-Join' pattern is critical for churn analysis and data quality auditing.",
+      "estimated_minutes": 25,
+      "difficulty": "intermediate",
+      "tags": ["anti-join", "null filtering", "multi-table join", "churn analysis"]
+    },
+    {
+      "id": "res_sql_agg_1",
+      "concept_id": "sql_aggregation",
+      "title": "GROUP BY and HAVING: Filtering Aggregated Metrics",
+      "resource_type": "article",
+      "url_or_ref": "https://mode.com/sql-tutorial/sql-group-by/",
+      "content_snippet": "Aggregation collapses multiple rows into a single summary row using functions like COUNT(), SUM(), AVG(), MIN(), MAX(). Any non-aggregated column in the SELECT clause MUST appear in the GROUP BY clause. Crucial distinction: WHERE filters rows BEFORE grouping (operates on raw records), while HAVING filters aggregated metrics AFTER grouping (e.g. HAVING COUNT(order_id) > 10).",
+      "estimated_minutes": 15,
+      "difficulty": "intermediate",
+      "tags": ["group by", "having", "count", "sum", "average", "aggregation"]
+    },
+    {
+      "id": "res_sql_window_1",
+      "concept_id": "sql_window_functions",
+      "title": "Advanced SQL Analytics: Window Functions (OVER, PARTITION BY, RANK)",
+      "resource_type": "article",
+      "url_or_ref": "https://postgresql.org/docs/current/tutorial-window.html",
+      "content_snippet": "Unlike GROUP BY, window functions perform calculations across a set of rows without collapsing the result into a single row. Syntax: FUNCTION() OVER (PARTITION BY group_col ORDER BY sort_col). Key window functions: ROW_NUMBER() assigns a unique sequential integer; RANK() assigns ranks with gaps for ties (1, 2, 2, 4); DENSE_RANK() assigns ranks without gaps (1, 2, 2, 3); LAG() and LEAD() fetch values from previous or subsequent rows for period-over-period growth calculations.",
+      "estimated_minutes": 25,
+      "difficulty": "advanced",
+      "tags": ["window functions", "over", "partition by", "rank", "dense_rank", "lag", "lead", "cumulative sum"]
+    },
+    {
+      "id": "res_pandas_basics_1",
+      "concept_id": "pandas_basics",
+      "title": "Pandas DataFrames & Series: Indexing and Selection",
+      "resource_type": "article",
+      "url_or_ref": "https://pandas.pydata.org/docs/getting_started/intro_tutorials/03_subset_data.html",
+      "content_snippet": "A Series is a 1D labeled array; a DataFrame is a 2D tabular structure composed of aligned Series. Primary indexing rules: df.loc[rows, cols] uses explicit labels/names (inclusive of stop slice); df.iloc[rows, cols] uses 0-based integer positions (exclusive of stop slice). For boolean filtering, always enclose separate conditions in parentheses: df[(df['age'] > 25) & (df['dept'] == 'Sales')].",
+      "estimated_minutes": 20,
+      "difficulty": "intermediate",
+      "tags": ["pandas", "dataframe", "series", "loc", "iloc", "filtering", "python"]
+    },
+    {
+      "id": "res_pandas_clean_1",
+      "concept_id": "pandas_data_cleaning",
+      "title": "Data Imputation and Missing Value Strategies in Pandas",
+      "resource_type": "article",
+      "url_or_ref": "https://pandas.pydata.org/docs/user_guide/missing_data.html",
+      "content_snippet": "Missing data (NaN/None) handling strategies: 1. Dropping with df.dropna(subset=['col'], how='any'). 2. Imputation with df.fillna(). For symmetric normal distributions, impute with the mean. For skewed distributions with heavy outliers, impute with the median. For categorical data, impute with the mode or a dedicated 'Unknown' category. Always check missing proportions first with df.isnull().mean() * 100.",
+      "estimated_minutes": 20,
+      "difficulty": "intermediate",
+      "tags": ["pandas", "missing values", "imputation", "median", "mean", "data cleaning"]
+    },
+    {
+      "id": "res_stats_desc_1",
+      "concept_id": "descriptive_stats",
+      "title": "Summary Statistics: Skewness, Variance and the Interquartile Range",
+      "resource_type": "article",
+      "url_or_ref": "https://khanacademy.org/math/statistics-probability/summarizing-quantitative-data",
+      "content_snippet": "Summary statistics quantify central tendency and dispersion. In symmetric bell curves, Mean = Median = Mode. In right-skewed distributions (e.g. income), extreme high values pull the Mean to the right: Mean > Median > Mode. Dispersion is measured by Standard Deviation (sensitive to outliers) and Interquartile Range (IQR = Q3 - Q1, robust to outliers). Outlier detection threshold: Values < Q1 - 1.5*IQR or > Q3 + 1.5*IQR.",
+      "estimated_minutes": 15,
+      "difficulty": "beginner",
+      "tags": ["statistics", "mean", "median", "mode", "skewness", "iqr", "variance", "outliers"]
+    },
+    {
+      "id": "res_stats_hypo_1",
+      "concept_id": "inferential_stats",
+      "title": "Hypothesis Testing, P-Values, and Statistical Significance",
+      "resource_type": "video",
+      "url_or_ref": "https://statquest.org/hypothesis-testing-and-p-values/",
+      "content_snippet": "Hypothesis testing evaluates whether an observed effect is real or due to random sampling chance. Null Hypothesis (H0): No effect / no difference. Alternative Hypothesis (H1): There is a significant effect. P-value: Probability of observing data at least as extreme as ours assuming H0 is true. Decision rule: If p-value < alpha (typically 0.05), reject H0. Type I Error: False Positive (rejecting true H0). Type II Error: False Negative (failing to reject false H0).",
+      "estimated_minutes": 20,
+      "difficulty": "intermediate",
+      "tags": ["hypothesis testing", "p-value", "null hypothesis", "significance", "type 1 error", "a/b testing"]
+    },
+    {
+      "id": "res_viz_fund_1",
+      "concept_id": "viz_fundamentals",
+      "title": "Data Visualization Chart Chooser: Principles of Visual Perception",
+      "resource_type": "cheat_sheet",
+      "url_or_ref": "https://datavizproject.com/",
+      "content_snippet": "Matching data types to chart types: 1. Comparisons across categories -> Bar Chart (horizontal if labels are long). 2. Continuous changes over time -> Line Chart. 3. Correlation between two continuous variables -> Scatter Plot. 4. Distribution of a single continuous variable -> Histogram or Box Plot. 5. Composition / Part-to-whole -> Stacked Bar or Treemap (avoid Pie Charts with > 5 slices due to poor human angle perception).",
+      "estimated_minutes": 15,
+      "difficulty": "beginner",
+      "tags": ["visualization", "chart selection", "bar chart", "scatter plot", "line chart", "perception"]
+    },
+    {
+      "id": "res_dash_design_1",
+      "concept_id": "dashboard_design",
+      "title": "Dashboard Design Best Practices: Progressive Disclosure and KPI Hierarchy",
+      "resource_type": "article",
+      "url_or_ref": "https://tableau.com/learn/articles/dashboard-design-best-practices",
+      "content_snippet": "Executive dashboard design rules: 1. Place the most critical North Star KPI cards at the top-left (natural F-pattern reading). 2. Use Progressive Disclosure: top-level trends first, with interactive click-through filters for underlying details. 3. Maximize the Data-Ink Ratio (Edward Tufte): remove 3D effects, unnecessary gridlines, and visual clutter. 4. Use color purposefully: monochromatic palettes with an intentional accent color for alerts.",
+      "estimated_minutes": 20,
+      "difficulty": "intermediate",
+      "tags": ["dashboard", "kpi", "data-ink ratio", "progressive disclosure", "tableau", "power bi", "bi"]
+    }
+  ]
+}
+

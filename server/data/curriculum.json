@@ -1,0 +1,524 @@
+{
+  "concepts": [
+    {
+      "id": "set_theory",
+      "name": "Set Theory & Cartesian Products",
+      "domain": "SQL",
+      "depth_level": 1,
+      "difficulty_baseline": 0.2,
+      "description": "Fundamental set operations (Union, Intersection, Cartesian products) forming relational algebra.",
+      "prerequisites": [],
+      "questions": [
+        {
+          "id": "q_set_1",
+          "concept_id": "set_theory",
+          "difficulty": 0.2,
+          "question_type": "MCQ",
+          "question": "If Table A has 3 rows and Table B has 4 rows, how many rows will a Cartesian Product (CROSS JOIN) return?",
+          "options": ["7 rows", "12 rows", "4 rows", "3 rows"],
+          "correct_answer": "12 rows",
+          "explanation": "A Cartesian product pairs every row of Table A with every row of Table B: 3 * 4 = 12 rows."
+        },
+        {
+          "id": "q_set_2",
+          "concept_id": "set_theory",
+          "difficulty": 0.25,
+          "question_type": "MCQ",
+          "question": "What is the difference between UNION and UNION ALL in SQL set operations?",
+          "options": [
+            "UNION eliminates duplicate rows; UNION ALL keeps all rows including duplicates",
+            "UNION ALL eliminates duplicates; UNION keeps duplicates",
+            "UNION only works on tables with numeric columns",
+            "There is no difference in modern relational databases"
+          ],
+          "correct_answer": "UNION eliminates duplicate rows; UNION ALL keeps all rows including duplicates",
+          "explanation": "UNION runs a deduplication step which incurs performance overhead, whereas UNION ALL directly concatenates sets."
+        }
+      ]
+    },
+    {
+      "id": "relational_keys",
+      "name": "Primary & Foreign Keys",
+      "domain": "SQL",
+      "depth_level": 1,
+      "difficulty_baseline": 0.3,
+      "description": "Understanding unique identifiers, integrity constraints, and relational table references.",
+      "prerequisites": ["set_theory"],
+      "questions": [
+        {
+          "id": "q_keys_1",
+          "concept_id": "relational_keys",
+          "difficulty": 0.3,
+          "question_type": "MCQ",
+          "question": "What is the purpose of a Foreign Key constraint in a relational database?",
+          "options": [
+            "To ensure the table has unique column names",
+            "To enforce referential integrity between two related tables",
+            "To automatically encrypt sensitive data",
+            "To make queries execute faster without indexes"
+          ],
+          "correct_answer": "To enforce referential integrity between two related tables",
+          "explanation": "A Foreign Key enforces referential integrity by ensuring a value matches a Primary Key in another table."
+        },
+        {
+          "id": "q_keys_2",
+          "concept_id": "relational_keys",
+          "difficulty": 0.35,
+          "question_type": "Scenario-based",
+          "question": "An attempt to delete a record in the 'departments' table fails with a Foreign Key violation error. Why does this happen?",
+          "options": [
+            "The table 'departments' is marked read-only",
+            "Records in another table (e.g. 'employees') reference this department id",
+            "The department record has null values",
+            "The database server ran out of disk space"
+          ],
+          "correct_answer": "Records in another table (e.g. 'employees') reference this department id",
+          "explanation": "Foreign Key constraints prevent orphaned records by blocking deletions of parent records that child tables still reference."
+        }
+      ]
+    },
+    {
+      "id": "sql_basics",
+      "name": "SQL Basic Queries (SELECT, WHERE, ORDER BY)",
+      "domain": "SQL",
+      "depth_level": 1,
+      "difficulty_baseline": 0.35,
+      "description": "Extracting and filtering data using SELECT, FROM, WHERE, and sorting with ORDER BY.",
+      "prerequisites": [],
+      "questions": [
+        {
+          "id": "q_sql_basic_1",
+          "concept_id": "sql_basics",
+          "difficulty": 0.35,
+          "question_type": "MCQ",
+          "question": "Which clause filters rows BEFORE an aggregation operation in SQL?",
+          "options": ["HAVING", "WHERE", "ORDER BY", "GROUP BY"],
+          "correct_answer": "WHERE",
+          "explanation": "WHERE filters individual records before aggregation; HAVING filters aggregated groups."
+        },
+        {
+          "id": "q_sql_basic_2",
+          "concept_id": "sql_basics",
+          "difficulty": 0.3,
+          "question_type": "Coding",
+          "question": "Which query correctly returns the top 5 highest-paid employees?",
+          "options": [
+            "SELECT * FROM employees ORDER BY salary DESC LIMIT 5;",
+            "SELECT * FROM employees WHERE salary = MAX(salary) LIMIT 5;",
+            "SELECT TOP 5 * FROM employees SORT salary;",
+            "SELECT * FROM employees ORDER BY salary ASC LIMIT 5;"
+          ],
+          "correct_answer": "SELECT * FROM employees ORDER BY salary DESC LIMIT 5;",
+          "explanation": "ORDER BY salary DESC sorts from highest to lowest, and LIMIT 5 extracts the top 5 rows."
+        }
+      ]
+    },
+    {
+      "id": "sql_joins",
+      "name": "SQL Joins (INNER, LEFT, RIGHT, FULL)",
+      "domain": "SQL",
+      "depth_level": 2,
+      "difficulty_baseline": 0.55,
+      "description": "Combining records from two or more tables based on a related key column.",
+      "prerequisites": ["relational_keys", "sql_basics"],
+      "questions": [
+        {
+          "id": "q_joins_1",
+          "concept_id": "sql_joins",
+          "difficulty": 0.55,
+          "question_type": "Scenario-based",
+          "question": "You need a report listing ALL customers and their orders, including customers who have not placed any orders yet. Which join should you use?",
+          "options": [
+            "SELECT * FROM Customers c INNER JOIN Orders o ON c.id = o.customer_id",
+            "SELECT * FROM Customers c LEFT JOIN Orders o ON c.id = o.customer_id",
+            "SELECT * FROM Customers c CROSS JOIN Orders o",
+            "SELECT * FROM Customers c RIGHT JOIN Orders o ON c.id = o.customer_id"
+          ],
+          "correct_answer": "SELECT * FROM Customers c LEFT JOIN Orders o ON c.id = o.customer_id",
+          "explanation": "LEFT JOIN retains all records from the left table (Customers) even when no match exists in Orders."
+        },
+        {
+          "id": "q_joins_2",
+          "concept_id": "sql_joins",
+          "difficulty": 0.6,
+          "question_type": "Scenario-based",
+          "question": "If Table A has IDs [1, 2, 3] and Table B has IDs [2, 3, 4], which IDs will be returned by an INNER JOIN on ID?",
+          "options": ["[1, 2, 3, 4]", "[2, 3]", "[1, 4]", "[1, 2, 3]"],
+          "correct_answer": "[2, 3]",
+          "explanation": "INNER JOIN returns strictly matching records present in both tables: 2 and 3."
+        }
+      ]
+    },
+    {
+      "id": "sql_aggregation",
+      "name": "SQL Aggregation & GROUP BY",
+      "domain": "SQL",
+      "depth_level": 2,
+      "difficulty_baseline": 0.6,
+      "description": "Summarizing data using COUNT, SUM, AVG, MIN, MAX and grouping with GROUP BY / HAVING.",
+      "prerequisites": ["sql_basics"],
+      "questions": [
+        {
+          "id": "q_agg_1",
+          "concept_id": "sql_aggregation",
+          "difficulty": 0.6,
+          "question_type": "Scenario-based",
+          "question": "To find departments having more than 5 employees with average salary > 60,000, which clause filters the average salary?",
+          "options": [
+            "WHERE AVG(salary) > 60000",
+            "HAVING AVG(salary) > 60000",
+            "GROUP BY AVG(salary)",
+            "QUALIFY AVG(salary) > 60000"
+          ],
+          "correct_answer": "HAVING AVG(salary) > 60000",
+          "explanation": "HAVING is used to filter aggregate conditions like AVG(salary) > 60000 after grouping."
+        },
+        {
+          "id": "q_agg_2",
+          "concept_id": "sql_aggregation",
+          "difficulty": 0.55,
+          "question_type": "MCQ",
+          "question": "What is the outcome of `COUNT(*)` vs `COUNT(column_name)` when a column contains NULL values?",
+          "options": [
+            "COUNT(*) counts all rows; COUNT(column_name) ignores NULL values",
+            "Both return the exact same count always",
+            "COUNT(column_name) throws an error on NULLs",
+            "COUNT(*) ignores NULLs; COUNT(column_name) counts NULLs"
+          ],
+          "correct_answer": "COUNT(*) counts all rows; COUNT(column_name) ignores NULL values",
+          "explanation": "COUNT(*) counts total rows in the group, whereas COUNT(col) counts only non-null instances."
+        }
+      ]
+    },
+    {
+      "id": "sql_window_functions",
+      "name": "SQL Window Functions (OVER, PARTITION BY, RANK)",
+      "domain": "SQL",
+      "depth_level": 3,
+      "difficulty_baseline": 0.8,
+      "description": "Advanced analytical calculations across a set of table rows related to the current row without collapsing rows.",
+      "prerequisites": ["sql_joins", "sql_aggregation"],
+      "questions": [
+        {
+          "id": "q_window_1",
+          "concept_id": "sql_window_functions",
+          "difficulty": 0.8,
+          "question_type": "Coding",
+          "question": "What is the key difference between RANK() and DENSE_RANK() when two rows have equal values?",
+          "options": [
+            "RANK() leaves gaps in rank numbers for ties; DENSE_RANK() does not leave gaps",
+            "DENSE_RANK() leaves gaps; RANK() does not leave gaps",
+            "RANK() only works with numeric columns; DENSE_RANK() works with text",
+            "There is no difference in PostgreSQL"
+          ],
+          "correct_answer": "RANK() leaves gaps in rank numbers for ties; DENSE_RANK() does not leave gaps",
+          "explanation": "RANK() assigns 1, 2, 2, 4 (leaves gap); DENSE_RANK() assigns 1, 2, 2, 3 (no gap)."
+        },
+        {
+          "id": "q_window_2",
+          "concept_id": "sql_window_functions",
+          "difficulty": 0.85,
+          "question_type": "Scenario-based",
+          "question": "Which window function clause computes a running cumulative total of revenue by date for each product category?",
+          "options": [
+            "SUM(revenue) OVER (PARTITION BY category ORDER BY date)",
+            "SUM(revenue) GROUP BY category, date",
+            "CUMULATIVE_SUM(revenue) OVER (category)",
+            "SUM(revenue) OVER (ORDER BY date)"
+          ],
+          "correct_answer": "SUM(revenue) OVER (PARTITION BY category ORDER BY date)",
+          "explanation": "PARTITION BY resets the running calculation for each category, and ORDER BY date computes the cumulative sum chronologically."
+        }
+      ]
+    },
+    {
+      "id": "python_basics",
+      "name": "Python Fundamentals (Variables, Control Flow)",
+      "domain": "Python",
+      "depth_level": 1,
+      "difficulty_baseline": 0.25,
+      "description": "Basic syntax, conditionals, loops, functions, and error handling in Python.",
+      "prerequisites": [],
+      "questions": [
+        {
+          "id": "q_py_basic_1",
+          "concept_id": "python_basics",
+          "difficulty": 0.25,
+          "question_type": "MCQ",
+          "question": "What will be the output of `bool([])` in Python?",
+          "options": ["True", "False", "None", "IndexError"],
+          "correct_answer": "False",
+          "explanation": "Empty collections (lists, dicts, tuples, strings) evaluate to False in Python truth-value testing."
+        },
+        {
+          "id": "q_py_basic_2",
+          "concept_id": "python_basics",
+          "difficulty": 0.3,
+          "question_type": "Coding",
+          "question": "What is the output of `[x ** 2 for x in range(4) if x % 2 == 0]`?",
+          "options": ["[0, 4]", "[1, 9]", "[0, 1, 4, 9]", "[4]"],
+          "correct_answer": "[0, 4]",
+          "explanation": "range(4) is 0, 1, 2, 3. The even numbers are 0 and 2. 0^2 = 0, 2^2 = 4."
+        }
+      ]
+    },
+    {
+      "id": "python_data_structures",
+      "name": "Python Data Structures (Lists, Dicts, Sets)",
+      "domain": "Python",
+      "depth_level": 1,
+      "difficulty_baseline": 0.4,
+      "description": "Manipulating lists, dictionaries, tuples, and sets with comprehensions.",
+      "prerequisites": ["python_basics"],
+      "questions": [
+        {
+          "id": "q_py_ds_1",
+          "concept_id": "python_data_structures",
+          "difficulty": 0.4,
+          "question_type": "Coding",
+          "question": "What is the average time complexity of looking up a key in a Python dictionary?",
+          "options": ["O(1)", "O(n)", "O(log n)", "O(n^2)"],
+          "correct_answer": "O(1)",
+          "explanation": "Python dictionaries are implemented as hash tables, giving them average O(1) time complexity for lookups."
+        },
+        {
+          "id": "q_py_ds_2",
+          "concept_id": "python_data_structures",
+          "difficulty": 0.45,
+          "question_type": "MCQ",
+          "question": "Which data structure in Python is immutable and hashable, making it valid as a dictionary key?",
+          "options": ["Tuple", "List", "Set", "Dictionary"],
+          "correct_answer": "Tuple",
+          "explanation": "Tuples are immutable; if their elements are also hashable, they can serve as dictionary keys."
+        }
+      ]
+    },
+    {
+      "id": "pandas_basics",
+      "name": "Pandas DataFrames & Series",
+      "domain": "Python",
+      "depth_level": 2,
+      "difficulty_baseline": 0.5,
+      "description": "Loading, inspecting, and selecting data using Pandas DataFrames and Series.",
+      "prerequisites": ["python_data_structures"],
+      "questions": [
+        {
+          "id": "q_pandas_1",
+          "concept_id": "pandas_basics",
+          "difficulty": 0.5,
+          "question_type": "Coding",
+          "question": "In Pandas, what is the primary difference between `df.loc[]` and `df.iloc[]`?",
+          "options": [
+            "loc is label-based; iloc is integer position-based",
+            "iloc is label-based; loc is integer position-based",
+            "loc works on columns only; iloc works on rows only",
+            "loc modifies the DataFrame in-place; iloc returns a copy"
+          ],
+          "correct_answer": "loc is label-based; iloc is integer position-based",
+          "explanation": "`.loc[]` indexes by explicit index/column labels, while `.iloc[]` indexes by 0-based integer positions."
+        },
+        {
+          "id": "q_pandas_2",
+          "concept_id": "pandas_basics",
+          "difficulty": 0.55,
+          "question_type": "Coding",
+          "question": "Which command filters DataFrame `df` for rows where column 'age' is greater than 30 and 'city' is 'Mumbai'?",
+          "options": [
+            "df[(df['age'] > 30) & (df['city'] == 'Mumbai')]",
+            "df[(df['age'] > 30) and (df['city'] == 'Mumbai')]",
+            "df.filter(age > 30, city == 'Mumbai')",
+            "df.where('age > 30 & city == Mumbai')"
+          ],
+          "correct_answer": "df[(df['age'] > 30) & (df['city'] == 'Mumbai')]",
+          "explanation": "Pandas requires bitwise operators (`&`, `|`) with explicit parenthetical conditions for element-wise boolean indexing."
+        }
+      ]
+    },
+    {
+      "id": "pandas_data_cleaning",
+      "name": "Data Cleaning & Imputation (Pandas)",
+      "domain": "Python",
+      "depth_level": 2,
+      "difficulty_baseline": 0.65,
+      "description": "Handling missing values, deduplication, type casting, and string manipulation.",
+      "prerequisites": ["pandas_basics"],
+      "questions": [
+        {
+          "id": "q_pandas_clean_1",
+          "concept_id": "pandas_data_cleaning",
+          "difficulty": 0.65,
+          "question_type": "Scenario-based",
+          "question": "When replacing missing values in a numeric column skewed by heavy outliers, which imputation statistic is most robust?",
+          "options": ["Mean", "Median", "Mode", "Zero"],
+          "correct_answer": "Median",
+          "explanation": "Median is the 50th percentile and is resistant to extreme outliers, whereas the mean is heavily pulled by skew."
+        },
+        {
+          "id": "q_pandas_clean_2",
+          "concept_id": "pandas_data_cleaning",
+          "difficulty": 0.6,
+          "question_type": "Coding",
+          "question": "Which method drops rows only if ALL columns in that row are NaN in Pandas?",
+          "options": [
+            "df.dropna(how='all')",
+            "df.dropna(how='any')",
+            "df.drop_nulls(all=True)",
+            "df.dropna(thresh=1)"
+          ],
+          "correct_answer": "df.dropna(how='all')",
+          "explanation": "`how='all'` ensures a row is dropped only if every single value in that row is missing."
+        }
+      ]
+    },
+    {
+      "id": "descriptive_stats",
+      "name": "Descriptive Statistics (Mean, Median, Variance, IQR)",
+      "domain": "Statistics",
+      "depth_level": 1,
+      "difficulty_baseline": 0.3,
+      "description": "Measures of central tendency, dispersion, variance, standard deviation, and quartiles.",
+      "prerequisites": [],
+      "questions": [
+        {
+          "id": "q_stats_desc_1",
+          "concept_id": "descriptive_stats",
+          "difficulty": 0.3,
+          "question_type": "MCQ",
+          "question": "In a right-skewed (positively skewed) distribution, which inequality typically holds true?",
+          "options": [
+            "Mean > Median > Mode",
+            "Mode > Median > Mean",
+            "Mean = Median = Mode",
+            "Median > Mean > Mode"
+          ],
+          "correct_answer": "Mean > Median > Mode",
+          "explanation": "Positive skew pulls the mean to the right (tail), so Mean > Median > Mode."
+        },
+        {
+          "id": "q_stats_desc_2",
+          "concept_id": "descriptive_stats",
+          "difficulty": 0.35,
+          "question_type": "MCQ",
+          "question": "What percentage of data lies between the First Quartile (Q1) and Third Quartile (Q3) in any distribution?",
+          "options": ["50%", "68%", "75%", "95%"],
+          "correct_answer": "50%",
+          "explanation": "The Interquartile Range (IQR = Q3 - Q1) covers the middle 50% of the observations."
+        }
+      ]
+    },
+    {
+      "id": "inferential_stats",
+      "name": "Inferential Statistics & Hypothesis Testing",
+      "domain": "Statistics",
+      "depth_level": 2,
+      "difficulty_baseline": 0.65,
+      "description": "Null hypothesis, p-values, t-tests, ANOVA, and confidence intervals.",
+      "prerequisites": ["descriptive_stats"],
+      "questions": [
+        {
+          "id": "q_stats_hypo_1",
+          "concept_id": "inferential_stats",
+          "difficulty": 0.65,
+          "question_type": "Scenario-based",
+          "question": "A p-value of 0.02 is obtained with a significance threshold (alpha) of 0.05. What is the appropriate statistical decision?",
+          "options": [
+            "Reject the Null Hypothesis (H0)",
+            "Fail to reject the Null Hypothesis (H0)",
+            "Accept the Null Hypothesis as 100% proven",
+            "Increase the sample size and repeat"
+          ],
+          "correct_answer": "Reject the Null Hypothesis (H0)",
+          "explanation": "Since p-value (0.02) < alpha (0.05), we reject the null hypothesis in favor of the alternative."
+        },
+        {
+          "id": "q_stats_hypo_2",
+          "concept_id": "inferential_stats",
+          "difficulty": 0.7,
+          "question_type": "MCQ",
+          "question": "What is a Type I error in hypothesis testing?",
+          "options": [
+            "Rejecting the null hypothesis when it is actually true (False Positive)",
+            "Failing to reject the null hypothesis when it is false (False Negative)",
+            "Calculating the wrong sample variance",
+            "Using a t-test instead of an ANOVA"
+          ],
+          "correct_answer": "Rejecting the null hypothesis when it is actually true (False Positive)",
+          "explanation": "Type I error (alpha) occurs when we falsely reject a true null hypothesis."
+        }
+      ]
+    },
+    {
+      "id": "viz_fundamentals",
+      "name": "Data Visualization & Chart Selection",
+      "domain": "Data Visualization",
+      "depth_level": 1,
+      "difficulty_baseline": 0.35,
+      "description": "Choosing the right chart type (Bar, Line, Scatter, Heatmap) for categorical vs continuous distributions.",
+      "prerequisites": [],
+      "questions": [
+        {
+          "id": "q_viz_1",
+          "concept_id": "viz_fundamentals",
+          "difficulty": 0.35,
+          "question_type": "MCQ",
+          "question": "Which visualization type is best suited to display the correlation between two continuous numeric variables?",
+          "options": ["Scatter Plot", "Pie Chart", "Stacked Bar Chart", "Treemap"],
+          "correct_answer": "Scatter Plot",
+          "explanation": "A scatter plot maps two continuous variables on Cartesian coordinates (X and Y), revealing correlation patterns."
+        },
+        {
+          "id": "q_viz_2",
+          "concept_id": "viz_fundamentals",
+          "difficulty": 0.4,
+          "question_type": "Scenario-based",
+          "question": "You need to show monthly revenue trends over the past 3 years. Which chart type is most appropriate?",
+          "options": ["Line Chart", "Pie Chart", "Scatter Plot", "Radar Chart"],
+          "correct_answer": "Line Chart",
+          "explanation": "Line charts excel at showing continuous trends, changes, and seasonality over time."
+        }
+      ]
+    },
+    {
+      "id": "dashboard_design",
+      "name": "BI Dashboards & Metric Hierarchy",
+      "domain": "Data Visualization",
+      "depth_level": 2,
+      "difficulty_baseline": 0.6,
+      "description": "Designing clear KPI executive summaries, drill-down interactivity, and cognitive load reduction.",
+      "prerequisites": ["viz_fundamentals"],
+      "questions": [
+        {
+          "id": "q_viz_dash_1",
+          "concept_id": "dashboard_design",
+          "difficulty": 0.6,
+          "question_type": "Scenario-based",
+          "question": "Which principle best reduces cognitive overload on an executive analytics dashboard?",
+          "options": [
+            "Display 20+ charts simultaneously on the primary screen",
+            "Show top-level North Star KPIs first, followed by drill-down filters for detail",
+            "Use 10 distinct bright colors across charts",
+            "Replace all numbers with 3D pie charts"
+          ],
+          "correct_answer": "Show top-level North Star KPIs first, followed by drill-down filters for detail",
+          "explanation": "Executive dashboards adhere to progressive disclosure: high-level summary KPIs at a glance, with on-demand drill-down."
+        },
+        {
+          "id": "q_viz_dash_2",
+          "concept_id": "dashboard_design",
+          "difficulty": 0.65,
+          "question_type": "MCQ",
+          "question": "In visual perception theory (Edward Tufte), what does the 'Data-Ink Ratio' represent?",
+          "options": [
+            "Proportion of ink used to display actual data vs total ink in the graphic",
+            "The resolution of print ink used for charts",
+            "The number of colors used in a dashboard",
+            "The font size of axis labels"
+          ],
+          "correct_answer": "Proportion of ink used to display actual data vs total ink in the graphic",
+          "explanation": "Tufte defines Data-Ink Ratio as data-ink divided by total ink used; higher is better because it minimizes chart clutter."
+        }
+      ]
+    }
+  ]
+}
+
