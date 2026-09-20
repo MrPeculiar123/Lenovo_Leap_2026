@@ -177,6 +177,8 @@ class RAGService:
                     gathered.append(item)
         return gathered
 
+    retrieve_for_gaps = get_resources_for_gaps
+
     def format_context_for_prompt(self, resources: List[Dict[str, Any]]) -> str:
         """Formats retrieved educational chunks into clean Markdown context for LLM prompts."""
         if not resources:

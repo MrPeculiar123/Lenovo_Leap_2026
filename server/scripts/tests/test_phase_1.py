@@ -14,6 +14,9 @@ from pathlib import Path
 
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent.parent))
+# Add project root and server to path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from server.services.knowledge_graph import knowledge_graph
 from server.services.ml_engine import ml_engine

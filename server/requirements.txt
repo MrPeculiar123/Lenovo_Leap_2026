@@ -15,3 +15,4 @@ email-validator
 networkx>=3.0
 pinecone>=5.0.0
 google-genai>=0.1.0
+langchain-nvidia-ai-endpoints>=0.1.0
