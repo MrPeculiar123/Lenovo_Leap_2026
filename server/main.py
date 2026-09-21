@@ -1,20 +1,41 @@
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from core.config import settings
 from routers.auth import router as auth_router
 from routers.onboarding import router as onboarding_router
 from routers.navigator import router as navigator_router
+from services.checkpoint_store import close_checkpointer, initialize_checkpointer
+from agent.graph import initialize_graphs
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await initialize_checkpointer()
+    initialize_graphs()
+    yield
+    await close_checkpointer()
 
 app = FastAPI(
-    title="Learning Navigator API"
+    title="Learning Navigator API",
+    lifespan=lifespan,
 )
+
+frontend_origins = [
+    origin.strip()
+    for origin in os.getenv("FRONTEND_ORIGINS", settings.FRONTEND_ORIGINS).split(",")
+    if origin.strip()
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=frontend_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.include_router(auth_router, prefix="/api")
@@ -25,4 +46,4 @@ app.include_router(navigator_router, prefix="/api")
 def root():
     return {
         "message": "Learning Navigator API is running"
-    }
+    }

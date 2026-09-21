@@ -1,254 +1,249 @@
-import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import Button from '../components/Button';
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  Sparkles,
-  Target,
-  Clock,
-  Globe,
-  Brain,
-  Layers,
-  BookOpen,
   ArrowRight,
-  CheckCircle2,
+  Target,
+  BookOpen,
+  Sparkles,
   AlertCircle,
-  Code,
-  Edit3,
-} from 'lucide-react';
+  BarChart3,
+  CheckCircle2,
+} from "lucide-react";
+import AppShell from "../components/AppShell";
+import { api } from "../services/api";
+import Loading from "../components/Loading";
 
-export function Dashboard() {
-  const { user, onboardingProfile } = useAuth();
-  const [assessmentModalOpen, setAssessmentModalOpen] = useState(false);
-
+export default function Dashboard() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const load = () => {
+    setError("");
+    api
+      .getDashboard()
+      .then(setData)
+      .catch((e) => setError(e.message));
+  };
+  useEffect(load, []);
+  if (!data && !error)
+    return (
+      <AppShell>
+        <Loading message="Loading your workspace..." />
+      </AppShell>
+    );
+  if (error)
+    return (
+      <AppShell>
+        <Empty
+          title="Could not load your dashboard"
+          text={error}
+          action={load}
+        />
+      </AppShell>
+    );
+  const score = Math.round(
+    (data?.career_readiness_score || 0) *
+      (data?.career_readiness_score <= 1 ? 100 : 1),
+  );
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      <Navbar />
-
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        {/* Welcome Header */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl backdrop-blur-md">
-          <div>
-            <div className="flex items-center space-x-2 text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-1">
-              <Sparkles className="w-4 h-4" />
-              <span>Learning Dashboard</span>
+    <AppShell>
+      <div className="mb-8">
+        <p className="mb-2 text-sm font-medium text-indigo-600">
+          Your learning cockpit
+        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+          Keep moving forward.
+        </h1>
+        <p className="mt-2 text-slate-500">
+          A clear path to your next career milestone.
+        </p>
+      </div>
+      <div className="grid gap-5 md:grid-cols-3">
+        <div className="rounded-2xl bg-indigo-600 p-6 text-white md:col-span-2">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-indigo-100">Career readiness</p>
+              <p className="mt-3 text-5xl font-bold">{score}%</p>
+              <p className="mt-2 text-sm text-indigo-100">
+                {data?.is_career_ready
+                  ? "You are career ready!"
+                  : "Complete an assessment to get your score."}
+              </p>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Welcome back 👋
-            </h1>
-            <p className="text-slate-400 text-sm mt-1">
-              Let's build your learning journey.
+            <Target className="opacity-60" size={28} />
+          </div>
+          <Link
+            to="/assessment"
+            className="mt-7 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-indigo-700"
+          >
+            Take assessment <ArrowRight size={16} />
+          </Link>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <p className="text-sm text-slate-500">Next focus</p>
+          <h2 className="mt-3 text-xl font-bold">
+            {data?.priority_gaps?.[0] || "Discover your strengths"}
+          </h2>
+          <p className="mt-2 text-sm text-slate-500">
+            Your personalized recommendations appear here after an assessment.
+          </p>
+          <Link
+            to="/learning-plan"
+            className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-indigo-600"
+          >
+            View learning plan <ArrowRight size={15} />
+          </Link>
+        </div>
+      </div>
+      <div className="mt-6 grid gap-5 md:grid-cols-2">
+        <Card
+          icon={BookOpen}
+          title="Learning plan"
+          text={
+            data?.plan_summary ||
+            "Build a practical plan around your goals and available time."
+          }
+          href="/learning-plan"
+        />
+        <Card
+          icon={Sparkles}
+          title="Ask your AI tutor"
+          text="Get clear explanations and guidance whenever you are stuck."
+          href="/tutor"
+        />
+      </div>
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="flex items-center gap-2 font-bold">
+            <BarChart3 size={19} className="text-indigo-600" /> Domain progress
+          </h2>
+          {Object.keys(data?.domain_scores || {}).length ? (
+            <div className="mt-5 space-y-4">
+              {Object.entries(data.domain_scores).map(([name, value]) => (
+                <div key={name}>
+                  <div className="mb-1 flex justify-between text-sm">
+                    <span className="text-slate-600">{name}</span>
+                    <span className="font-semibold">
+                      {Math.round(value <= 1 ? value * 100 : value)}%
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100">
+                    <div
+                      className="h-2 rounded-full bg-indigo-500"
+                      style={{
+                        width: `${Math.min(100, value <= 1 ? value * 100 : value)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-slate-500">
+              Complete an assessment to see domain-level progress.
             </p>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <Link
-              to="/onboarding"
-              className="inline-flex items-center space-x-1.5 text-xs font-medium px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Update Preferences</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Column: Assessment Session Card */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Assessment Session Card */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950/90 via-slate-900 to-slate-950 border border-indigo-500/30 p-6 sm:p-8 shadow-2xl">
-              {/* Background accent glow */}
-              <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-500/20 blur-3xl rounded-full pointer-events-none" />
-
-              <div className="relative z-10">
-                <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-4">
-                  <Brain className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Adaptive Engine Ready</span>
-                </div>
-
-                <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                  Assessment Session
-                </h2>
-
-                <p className="mt-2 text-slate-300 text-sm sm:text-base leading-relaxed">
-                  Your personalized assessment is ready.
-                </p>
-
-                <div className="mt-6 space-y-3 bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    We'll use your profile to determine:
-                  </p>
-                  <ul className="space-y-2 text-sm text-slate-300">
-                    <li className="flex items-center space-x-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
-                      <span>Current knowledge baseline</span>
-                    </li>
-                    <li className="flex items-center space-x-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
-                      <span>Strengths and core domain mastery</span>
-                    </li>
-                    <li className="flex items-center space-x-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
-                      <span>Target skill gaps for {onboardingProfile?.career_goal || 'your goal'}</span>
-                    </li>
-                    <li className="flex items-center space-x-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
-                      <span>Recommended learning path in {onboardingProfile?.primary_language || 'your language'}</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="mt-8">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    onClick={() => setAssessmentModalOpen(true)}
+          )}
+        </section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="flex items-center gap-2 font-bold">
+            <CheckCircle2 size={19} className="text-indigo-600" /> Priority gaps
+          </h2>
+          {data?.priority_gaps?.length ? (
+            <ul className="mt-4 space-y-3">
+              {data.priority_gaps.slice(0, 5).map((gap, index) => (
+                <li
+                  key={`${gap}-${index}`}
+                  className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                >
+                  {typeof gap === "string"
+                    ? gap
+                    : gap.name || gap.concept || JSON.stringify(gap)}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-slate-500">
+              No priority gaps reported yet.
+            </p>
+          )}
+        </section>
+      </div>
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="font-bold">Concept mastery</h2>
+          {Object.keys(data?.concept_mastery || {}).length ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {Object.entries(data.concept_mastery)
+                .slice(0, 8)
+                .map(([name, value]) => (
+                  <span
+                    key={name}
+                    className="rounded-full bg-slate-100 px-3 py-2 text-xs text-slate-700"
                   >
-                    Start Assessment
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </Button>
-                </div>
-              </div>
+                    {name}: {Math.round(value <= 1 ? value * 100 : value)}%
+                  </span>
+                ))}
             </div>
-
-            {/* Assessment Modal Placeholder */}
-            {assessmentModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
-                  <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mb-4">
-                    <Brain className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-xl font-bold text-white">Assessment Engine</h3>
-                  <p className="text-slate-400 text-sm mt-2 leading-relaxed">
-                    The adaptive assessment agent will generate custom {onboardingProfile?.preferred_question_types?.join(', ') || 'MCQ'} questions tailored for your {onboardingProfile?.perceived_level} level in {onboardingProfile?.primary_language}.
-                  </p>
-                  <div className="mt-4 p-3 bg-indigo-950/50 border border-indigo-800/40 rounded-xl text-xs text-indigo-300">
-                    ✨ Phase 1 integration complete! Adaptive agent connection ready.
-                  </div>
-                  <div className="mt-6 flex justify-end">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => setAssessmentModalOpen(false)}
-                    >
-                      Got It
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar Column: Profile Summary */}
-          <div className="space-y-6">
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-xl">
-              <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Target className="w-5 h-5 text-indigo-400" />
-                  Profile Summary
-                </h3>
-                <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                  Active
-                </span>
-              </div>
-
-              {onboardingProfile ? (
-                <div className="space-y-4 text-sm">
-                  {/* Subject */}
-                  <div>
-                    <span className="text-xs text-slate-400 block font-medium uppercase tracking-wider">Target</span>
-                    <span className="text-base font-semibold text-white mt-0.5 block">
-                      {onboardingProfile.subject}
-                    </span>
-                  </div>
-
-                  {/* Career Goal */}
-                  <div>
-                    <span className="text-xs text-slate-400 block font-medium uppercase tracking-wider">Career Goal</span>
-                    <span className="text-base font-semibold text-indigo-300 mt-0.5 block">
-                      {onboardingProfile.career_goal}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-800/60">
-                    {/* Skill Level */}
-                    <div>
-                      <span className="text-xs text-slate-400 block font-medium uppercase tracking-wider">Skill Level</span>
-                      <span className="font-semibold text-slate-200 text-sm mt-0.5 block">
-                        {onboardingProfile.perceived_level}
-                      </span>
-                    </div>
-
-                    {/* Weekly Commitment */}
-                    <div>
-                      <span className="text-xs text-slate-400 block font-medium uppercase tracking-wider">Commitment</span>
-                      <span className="font-semibold text-slate-200 text-sm mt-0.5 block">
-                        {onboardingProfile.time_commitment_hrs} hours/wk
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Language */}
-                  <div className="pt-2 border-t border-slate-800/60">
-                    <span className="text-xs text-slate-400 block font-medium uppercase tracking-wider">Learning Language</span>
-                    <span className="font-semibold text-slate-200 text-sm mt-0.5 block">
-                      {onboardingProfile.primary_language}
-                      {onboardingProfile.secondary_language && (
-                        <span className="text-slate-400 text-xs font-normal"> ({onboardingProfile.secondary_language})</span>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Prior Exposure */}
-                  {onboardingProfile.prior_exposure && onboardingProfile.prior_exposure.length > 0 && (
-                    <div className="pt-2 border-t border-slate-800/60">
-                      <span className="text-xs text-slate-400 block font-medium uppercase tracking-wider mb-2">Prior Exposure</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {onboardingProfile.prior_exposure.map((item, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-0.5 text-xs rounded-md bg-slate-800 border border-slate-700 text-slate-300"
-                          >
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Question Types */}
-                  {onboardingProfile.preferred_question_types && onboardingProfile.preferred_question_types.length > 0 && (
-                    <div className="pt-2 border-t border-slate-800/60">
-                      <span className="text-xs text-slate-400 block font-medium uppercase tracking-wider mb-2">Assessment Formats</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {onboardingProfile.preferred_question_types.map((type, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2.5 py-1 text-xs rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 font-medium"
-                          >
-                            {type}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-slate-400 text-xs">
-                  <p>No profile details found.</p>
-                  <Link to="/onboarding" className="mt-2 text-indigo-400 font-medium hover:underline inline-block">
-                    Complete Onboarding
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </main>
+          ) : (
+            <p className="mt-4 text-sm text-slate-500">
+              No concept scores yet.
+            </p>
+          )}
+        </section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="font-bold">Study plan preview</h2>
+          {data?.study_plan?.length ? (
+            <ul className="mt-4 space-y-2 text-sm text-slate-600">
+              {data.study_plan.slice(0, 3).map((item, i) => (
+                <li key={i}>
+                  •{" "}
+                  {typeof item === "string"
+                    ? item
+                    : item.title ||
+                      item.topic ||
+                      item.description ||
+                      JSON.stringify(item)}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-slate-500">
+              Your plan will appear after assessment analysis.
+            </p>
+          )}
+        </section>
+      </div>
+    </AppShell>
+  );
+}
+function Card({ icon: Icon, title, text, href }) {
+  return (
+    <Link
+      to={href}
+      className="group rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-sm"
+    >
+      <Icon size={22} className="text-indigo-600" />
+      <h2 className="mt-4 font-bold">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-500">{text}</p>
+      <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-indigo-600">
+        Open <ArrowRight size={15} />
+      </span>
+    </Link>
+  );
+}
+export function Empty({ title, text, action }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+      <AlertCircle className="mx-auto text-slate-300" size={30} />
+      <h2 className="mt-4 font-bold">{title}</h2>
+      <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">{text}</p>
+      {action && (
+        <button
+          onClick={action}
+          className="mt-5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white"
+        >
+          Retry
+        </button>
+      )}
     </div>
   );
 }
-
-export default Dashboard;

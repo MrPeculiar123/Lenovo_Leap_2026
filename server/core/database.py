@@ -1,7 +1,10 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from core.config import settings
+try:
+    from core.config import settings
+except ImportError:
+    from server.core.config import settings
 
 # Fallback to local URL if running outside Docker container
 db_url = os.getenv("DATABASE_URL", settings.DATABASE_URL)
