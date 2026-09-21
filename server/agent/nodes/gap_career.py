@@ -19,10 +19,16 @@ from dotenv import load_dotenv
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from server.agent.state import StudentState, PrioritizedGap
-from server.agent.prompts import format_gap_career_prompt
-from server.services.career_benchmarks import career_benchmarks
-from server.services.knowledge_graph import knowledge_graph
+try:
+    from agent.state import StudentState, PrioritizedGap
+    from agent.prompts import format_gap_career_prompt
+    from services.career_benchmarks import career_benchmarks
+    from services.knowledge_graph import knowledge_graph
+except ImportError:
+    from server.agent.state import StudentState, PrioritizedGap
+    from server.agent.prompts import format_gap_career_prompt
+    from server.services.career_benchmarks import career_benchmarks
+    from server.services.knowledge_graph import knowledge_graph
 
 # Load environment variables
 for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent.parent / ".env"]:

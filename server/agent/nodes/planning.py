@@ -19,8 +19,12 @@ from dotenv import load_dotenv
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from server.agent.state import StudentState, DailyPlanItem, GroundedResource
-from server.agent.prompts import format_planning_prompt
+try:
+    from agent.state import StudentState, DailyPlanItem, GroundedResource
+    from agent.prompts import format_planning_prompt
+except ImportError:
+    from server.agent.state import StudentState, DailyPlanItem, GroundedResource
+    from server.agent.prompts import format_planning_prompt
 
 # Load environment variables
 for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent.parent / ".env"]:

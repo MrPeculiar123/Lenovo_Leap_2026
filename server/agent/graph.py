@@ -13,23 +13,32 @@ Compiles the multi-agent adaptive learning pipeline into an executable StateGrap
 from typing import Dict, Any, Literal
 from langgraph.graph import StateGraph, END
 
-from server.agent.state import StudentState
-from server.agent.nodes.assessment import assessment_node, record_answer_node
-from server.agent.nodes.gap_career import gap_career_node
-from server.agent.nodes.content_tutor import content_tutor_node
-from server.agent.nodes.planning import planning_node
+try:
+    from agent.state import StudentState
+    from agent.nodes.assessment import assessment_node, record_answer_node
+    from agent.nodes.gap_career import gap_career_node
+    from agent.nodes.content_tutor import content_tutor_node
+    from agent.nodes.planning import planning_node
+except ImportError:
+    from server.agent.state import StudentState
+    from server.agent.nodes.assessment import assessment_node, record_answer_node
+    from server.agent.nodes.gap_career import gap_career_node
+    from server.agent.nodes.content_tutor import content_tutor_node
+    from server.agent.nodes.planning import planning_node
 
 
 # =============================================================================
 # ROUTING & CONDITIONAL EDGE LOGIC
 # =============================================================================
 
-def route_after_assessment(state: StudentState) -> Literal["gap_career", "__end__"]:
+def route_after_assessment(state: StudentState) -> Literal["gap_career", "evaluate_answer", "__end__"]:
     """
-    Decides whether to proceed to gap analysis or wait for student answer.
+    Decides whether to proceed to gap analysis, evaluate an answer, or wait for student answer.
     """
     if state.get("is_assessment_complete", False):
         return "gap_career"
+    if state.get("current_question", {}).get("student_answer"):
+        return "evaluate_answer"
     return "__end__"
 
 
@@ -69,6 +78,7 @@ def create_adaptive_learning_graph():
         route_after_assessment,
         {
             "gap_career": "gap_career",
+            "evaluate_answer": "evaluate_answer",
             "__end__": END
         }
     )

@@ -19,11 +19,18 @@ from dotenv import load_dotenv
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from server.agent.state import StudentState, QuestionItem
-from server.agent.prompts import format_assessment_prompt
-from server.services.knowledge_graph import knowledge_graph, DiagnosticQuestion
-from server.services.ml_engine import ml_engine, StudentMLProfile
-from server.services.career_benchmarks import career_benchmarks as career_benchmarks_service
+try:
+    from agent.state import StudentState, QuestionItem
+    from agent.prompts import format_assessment_prompt
+    from services.knowledge_graph import knowledge_graph, DiagnosticQuestion
+    from services.ml_engine import ml_engine, StudentMLProfile
+    from services.career_benchmarks import career_benchmarks as career_benchmarks_service
+except ImportError:
+    from server.agent.state import StudentState, QuestionItem
+    from server.agent.prompts import format_assessment_prompt
+    from server.services.knowledge_graph import knowledge_graph, DiagnosticQuestion
+    from server.services.ml_engine import ml_engine, StudentMLProfile
+    from server.services.career_benchmarks import career_benchmarks as career_benchmarks_service
 
 # Load environment variables
 for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent.parent / ".env"]:

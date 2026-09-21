@@ -18,9 +18,14 @@ from dotenv import load_dotenv
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from server.agent.state import StudentState, GroundedResource
-from server.agent.prompts import format_regional_tutor_prompt, format_tutor_chat_prompt
-from server.services.rag_service import rag_service
+try:
+    from agent.state import StudentState, GroundedResource
+    from agent.prompts import format_regional_tutor_prompt, format_tutor_chat_prompt
+    from services.rag_service import rag_service
+except ImportError:
+    from server.agent.state import StudentState, GroundedResource
+    from server.agent.prompts import format_regional_tutor_prompt, format_tutor_chat_prompt
+    from server.services.rag_service import rag_service
 
 # Load environment variables
 for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent.parent / ".env"]:
