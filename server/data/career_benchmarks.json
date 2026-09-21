@@ -1,0 +1,104 @@
+{
+  "roles": [
+    {
+      "id": "data_analyst",
+      "title": "Data Analyst",
+      "description": "Translates complex datasets into actionable business insights using SQL, data visualization, and exploratory statistical analysis.",
+      "required_skills": {
+        "SQL": 0.75,
+        "Python": 0.70,
+        "Data Visualization": 0.70,
+        "Statistics": 0.60
+      },
+      "skill_weights": {
+        "SQL": 0.35,
+        "Data Visualization": 0.25,
+        "Python": 0.20,
+        "Statistics": 0.20
+      },
+      "critical_concepts": [
+        "sql_basics",
+        "sql_joins",
+        "sql_aggregation",
+        "pandas_basics",
+        "viz_fundamentals",
+        "dashboard_design"
+      ]
+    },
+    {
+      "id": "bi_analyst",
+      "title": "Business Intelligence Analyst",
+      "description": "Designs executive dashboards, models relational data schemas, and monitors core business performance KPIs.",
+      "required_skills": {
+        "SQL": 0.80,
+        "Data Visualization": 0.85,
+        "Statistics": 0.50,
+        "Python": 0.45
+      },
+      "skill_weights": {
+        "Data Visualization": 0.40,
+        "SQL": 0.35,
+        "Statistics": 0.15,
+        "Python": 0.10
+      },
+      "critical_concepts": [
+        "sql_basics",
+        "sql_joins",
+        "sql_aggregation",
+        "viz_fundamentals",
+        "dashboard_design"
+      ]
+    },
+    {
+      "id": "data_scientist",
+      "title": "Data Scientist",
+      "description": "Builds statistical models, machine learning pipelines, and derives predictive patterns from high-dimensional datasets.",
+      "required_skills": {
+        "Python": 0.85,
+        "Statistics": 0.80,
+        "SQL": 0.70,
+        "Data Visualization": 0.60
+      },
+      "skill_weights": {
+        "Python": 0.35,
+        "Statistics": 0.30,
+        "SQL": 0.20,
+        "Data Visualization": 0.15
+      },
+      "critical_concepts": [
+        "python_basics",
+        "pandas_basics",
+        "pandas_data_cleaning",
+        "descriptive_stats",
+        "inferential_stats",
+        "sql_joins"
+      ]
+    },
+    {
+      "id": "data_engineer",
+      "title": "Data Engineer",
+      "description": "Constructs robust ELT pipelines, optimizes database schema architecture, and manages large-scale analytical databases.",
+      "required_skills": {
+        "SQL": 0.90,
+        "Python": 0.80,
+        "Statistics": 0.40,
+        "Data Visualization": 0.40
+      },
+      "skill_weights": {
+        "SQL": 0.50,
+        "Python": 0.35,
+        "Statistics": 0.10,
+        "Data Visualization": 0.05
+      },
+      "critical_concepts": [
+        "set_theory",
+        "relational_keys",
+        "sql_joins",
+        "sql_aggregation",
+        "sql_window_functions",
+        "python_data_structures"
+      ]
+    }
+  ]
+}
+
