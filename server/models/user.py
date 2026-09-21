@@ -13,6 +13,11 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     profile = relationship("UserProfile", back_populates="user", uselist=False)
+    assessment_sessions = relationship(
+        "AssessmentSession",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
