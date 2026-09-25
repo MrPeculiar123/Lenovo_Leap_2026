@@ -1,12 +1,12 @@
 """
-Gap Analysis & Career Agent Node (Combined - Dynamic Multi-Model NVIDIA NIM)
-=============================================================================
+Gap Analysis & Career Agent Node (Flexible Multi-Provider AI Inference)
+=======================================================================
 Combines Career Benchmark Matching with Knowledge Graph Root-Cause Traversal:
 1. Evaluates student domain scores and concept mastery against target career requirements.
 2. Identifies blocking skill deficits (concept gaps).
 3. Traverses the prerequisite DAG in the Knowledge Graph to identify bedrock root causes.
 4. Synthesizes a prioritized gap list, career readiness score, and alternative roles.
-5. Employs dynamic NVIDIA NIM routing (ChatNVIDIA) with deterministic fallback.
+5. Employs provider-agnostic LLM routing (Gemini primary, NIM fallback) with deterministic fallback.
 """
 
 import os
@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 try:
@@ -36,36 +36,54 @@ for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent
         load_dotenv(dotenv_path=env_path)
         break
 
-DEFAULT_GAP_CAREER_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b"
+DEFAULT_GAP_CAREER_MODEL = "gemini-3.5-flash-lite"
 
 
-def get_nvidia_client(
+def get_llm_client(
     model_name: str = DEFAULT_GAP_CAREER_MODEL,
     temperature: float = 0.2,
     max_tokens: int = 4096,
-    enable_thinking: bool = True,
-    reasoning_budget: int = 2048
-) -> Optional[ChatNVIDIA]:
-    """Dynamically instantiates ChatNVIDIA client for any specified model ID."""
-    api_key = os.environ.get("NVIDIA_API_KEY")
-    if not api_key:
-        return None
+    timeout: float = 60.0
+) -> Optional[Any]:
+    """
+    Generic LLM client factory that instantiates ChatGoogleGenerativeAI or ChatNVIDIA
+    based on available API keys and configured model ID.
+    """
+    google_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    nvidia_key = os.environ.get("NVIDIA_API_KEY")
 
-    try:
-        client_kwargs: Dict[str, Any] = {
-            "model": model_name,
-            "api_key": api_key,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        if "nemotron" in model_name.lower() or enable_thinking:
-            client_kwargs["reasoning_budget"] = reasoning_budget
-            client_kwargs["chat_template_kwargs"] = {"enable_thinking": True}
+    if google_key and ("gemini" in model_name.lower() or not nvidia_key):
+        try:
+            target_model = model_name if "gemini" in model_name.lower() else "gemini-2.0-flash"
+            return ChatGoogleGenerativeAI(
+                model=target_model,
+                google_api_key=google_key,
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+                timeout=timeout
+            )
+        except Exception as e:
+            print(f"[GapCareerNode] Error initializing Gemini model '{model_name}': {e}")
 
-        return ChatNVIDIA(**client_kwargs)
-    except Exception as e:
-        print(f"[GapCareerNode] Error initializing model '{model_name}': {e}")
-        return None
+    if nvidia_key:
+        try:
+            from langchain_nvidia_ai_endpoints import ChatNVIDIA
+            return ChatNVIDIA(
+                model=model_name,
+                api_key=nvidia_key,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout
+            )
+        except Exception as e:
+            print(f"[GapCareerNode] Error initializing NVIDIA model '{model_name}': {e}")
+
+    print("[GapCareerNode] Warning: No active API key found for GOOGLE_API_KEY or NVIDIA_API_KEY.")
+    return None
+
+
+# Backward-compatibility alias
+get_nvidia_client = get_llm_client
 
 
 def _clean_json_string(raw_text: str) -> str:
@@ -141,11 +159,11 @@ def gap_career_node(state: StudentState) -> Dict[str, Any]:
     # Sort gaps descending by priority score
     enriched_gaps.sort(key=lambda g: g.get("priority_score", 0.0), reverse=True)
 
-    # 3. Dynamic Multi-Model LLM Refinement via ChatNVIDIA
+    # 3. Flexible Multi-Model LLM Refinement
     target_model = state.get("gap_career_model") or DEFAULT_GAP_CAREER_MODEL
-    nvidia_client = get_nvidia_client(model_name=target_model)
+    llm_client = get_llm_client(model_name=target_model)
 
-    if nvidia_client:
+    if llm_client:
         try:
             role_obj = career_benchmarks.get_role(target_career)
             role_dict = role_obj.to_dict() if role_obj else {}
@@ -162,7 +180,7 @@ def gap_career_node(state: StudentState) -> Dict[str, Any]:
                 SystemMessage(content="You are an expert Career & Learning Gap Intelligence Agent. Output strictly raw JSON."),
                 HumanMessage(content=prompt_str)
             ]
-            response = nvidia_client.invoke(messages)
+            response = llm_client.invoke(messages)
             if response and response.content:
                 cleaned = _clean_json_string(str(response.content))
                 data = json.loads(cleaned)

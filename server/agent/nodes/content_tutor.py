@@ -1,12 +1,12 @@
 """
-Content & Regional Tutor Agent Node (Combined - Dynamic Multi-Model NVIDIA NIM)
-================================================================================
+Content & Regional Tutor Agent Node (Flexible Multi-Provider AI Inference)
+==========================================================================
 Combines RAG Educational Retrieval with Culturally Resonant Regional Tutoring:
 1. Pulls vector chunks from Pinecone for diagnosed root causes and skill gaps.
 2. Generates code-switched technical explanations in Marathi, Hindi, or English.
 3. Preserves code syntax and programming keywords in English.
 4. Provides interactive Socratic dialogue for follow-up questions (tutor_chat_node).
-5. Dynamic multi-model routing via NVIDIA NIM with robust local fallback.
+5. Employs provider-agnostic LLM routing (Gemini primary, NIM fallback) with robust local fallback.
 """
 
 import os
@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 try:
@@ -33,36 +33,54 @@ for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent
         load_dotenv(dotenv_path=env_path)
         break
 
-DEFAULT_TUTOR_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b"
+DEFAULT_TUTOR_MODEL = "gemini-3.5-flash-lite"
 
 
-def get_nvidia_client(
+def get_llm_client(
     model_name: str = DEFAULT_TUTOR_MODEL,
     temperature: float = 0.3,
     max_tokens: int = 4096,
-    enable_thinking: bool = True,
-    reasoning_budget: int = 2048
-) -> Optional[ChatNVIDIA]:
-    """Dynamically instantiates ChatNVIDIA client for any specified model ID."""
-    api_key = os.environ.get("NVIDIA_API_KEY")
-    if not api_key:
-        return None
+    timeout: float = 20.0
+) -> Optional[Any]:
+    """
+    Generic LLM client factory that instantiates ChatGoogleGenerativeAI or ChatNVIDIA
+    based on available API keys and configured model ID.
+    """
+    google_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    nvidia_key = os.environ.get("NVIDIA_API_KEY")
 
-    try:
-        client_kwargs: Dict[str, Any] = {
-            "model": model_name,
-            "api_key": api_key,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        if "nemotron" in model_name.lower() or enable_thinking:
-            client_kwargs["reasoning_budget"] = reasoning_budget
-            client_kwargs["chat_template_kwargs"] = {"enable_thinking": True}
+    if google_key and ("gemini" in model_name.lower() or not nvidia_key):
+        try:
+            target_model = model_name if "gemini" in model_name.lower() else "gemini-2.0-flash"
+            return ChatGoogleGenerativeAI(
+                model=target_model,
+                google_api_key=google_key,
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+                timeout=timeout
+            )
+        except Exception as e:
+            print(f"[ContentTutorNode] Error initializing Gemini model '{model_name}': {e}")
 
-        return ChatNVIDIA(**client_kwargs)
-    except Exception as e:
-        print(f"[ContentTutorNode] Error initializing model '{model_name}': {e}")
-        return None
+    if nvidia_key:
+        try:
+            from langchain_nvidia_ai_endpoints import ChatNVIDIA
+            return ChatNVIDIA(
+                model=model_name,
+                api_key=nvidia_key,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout
+            )
+        except Exception as e:
+            print(f"[ContentTutorNode] Error initializing NVIDIA model '{model_name}': {e}")
+
+    print("[ContentTutorNode] Warning: No active API key found for GOOGLE_API_KEY or NVIDIA_API_KEY.")
+    return None
+
+
+# Backward-compatibility alias
+get_nvidia_client = get_llm_client
 
 
 def _clean_thinking_blocks(raw_text: str) -> str:
@@ -117,12 +135,12 @@ def content_tutor_node(state: StudentState) -> Dict[str, Any]:
             "similarity_score": r.get("similarity_score")
         })
 
-    # 3. Dynamic Multi-Model NVIDIA NIM Generation
+    # 3. Dynamic Multi-Model LLM Generation via Generic Client
     target_model = state.get("tutor_model") or DEFAULT_TUTOR_MODEL
-    nvidia_client = get_nvidia_client(model_name=target_model)
+    llm_client = get_llm_client(model_name=target_model)
 
     explanation = ""
-    if nvidia_client:
+    if llm_client:
         try:
             prompt_str = format_regional_tutor_prompt(
                 concept_id=target_concept_id,
@@ -135,7 +153,7 @@ def content_tutor_node(state: StudentState) -> Dict[str, Any]:
                 SystemMessage(content=f"You are PathForge's Regional AI Mentor. Teach in {language} with code in English."),
                 HumanMessage(content=prompt_str)
             ]
-            response = nvidia_client.invoke(messages)
+            response = llm_client.invoke(messages)
             if response and response.content:
                 explanation = _clean_thinking_blocks(str(response.content))
         except Exception as e:
@@ -210,10 +228,10 @@ def tutor_chat_node(
     grounded_context = rag_service.format_context_for_prompt(resources)
 
     target_model = model_override or state.get("tutor_model") or DEFAULT_TUTOR_MODEL
-    nvidia_client = get_nvidia_client(model_name=target_model)
+    llm_client = get_llm_client(model_name=target_model)
 
     assistant_reply = ""
-    if nvidia_client:
+    if llm_client:
         try:
             system_prompt = format_tutor_chat_prompt(
                 target_career=target_career,
@@ -230,7 +248,7 @@ def tutor_chat_node(
                     messages.append(SystemMessage(content=turn.get("content", "")))
             messages.append(HumanMessage(content=student_message))
 
-            response = nvidia_client.invoke(messages)
+            response = llm_client.invoke(messages)
             if response and response.content:
                 assistant_reply = _clean_thinking_blocks(str(response.content))
         except Exception as e:

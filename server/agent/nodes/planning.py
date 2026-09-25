@@ -1,12 +1,12 @@
 """
-Personalized Planning Agent Node (Dynamic Multi-Model NVIDIA NIM)
-=================================================================
+Personalized Planning Agent Node (Flexible Multi-Provider AI Inference)
+========================================================================
 Creates an adaptive 7-day daily study roadmap:
 1. Strictly adheres to the student's daily time limit (e.g. 60 mins/day).
 2. Prerequisite-First Strategy: Remediates root causes before advancing to career blocker skills.
 3. Associates each day's focus with retrieved grounded educational resources.
 4. Generates structured daily activities, time breakdowns, and learning objectives.
-5. Employs dynamic multi-model routing via ChatNVIDIA with robust deterministic fallback.
+5. Employs provider-agnostic LLM routing (Gemini primary, NIM fallback) with deterministic fallback.
 """
 
 import os
@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 try:
@@ -32,36 +32,54 @@ for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent
         load_dotenv(dotenv_path=env_path)
         break
 
-DEFAULT_PLANNING_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b"
+DEFAULT_PLANNING_MODEL = "gemini-3.5-flash-lite"
 
 
-def get_nvidia_client(
+def get_llm_client(
     model_name: str = DEFAULT_PLANNING_MODEL,
     temperature: float = 0.2,
     max_tokens: int = 4096,
-    enable_thinking: bool = True,
-    reasoning_budget: int = 2048
-) -> Optional[ChatNVIDIA]:
-    """Dynamically instantiates ChatNVIDIA client for any specified model ID."""
-    api_key = os.environ.get("NVIDIA_API_KEY")
-    if not api_key:
-        return None
+    timeout: float = 60.0
+) -> Optional[Any]:
+    """
+    Generic LLM client factory that instantiates ChatGoogleGenerativeAI or ChatNVIDIA
+    based on available API keys and configured model ID.
+    """
+    google_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    nvidia_key = os.environ.get("NVIDIA_API_KEY")
 
-    try:
-        client_kwargs: Dict[str, Any] = {
-            "model": model_name,
-            "api_key": api_key,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        if "nemotron" in model_name.lower() or enable_thinking:
-            client_kwargs["reasoning_budget"] = reasoning_budget
-            client_kwargs["chat_template_kwargs"] = {"enable_thinking": True}
+    if google_key and ("gemini" in model_name.lower() or not nvidia_key):
+        try:
+            target_model = model_name if "gemini" in model_name.lower() else "gemini-2.0-flash"
+            return ChatGoogleGenerativeAI(
+                model=target_model,
+                google_api_key=google_key,
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+                timeout=timeout
+            )
+        except Exception as e:
+            print(f"[PlanningNode] Error initializing Gemini model '{model_name}': {e}")
 
-        return ChatNVIDIA(**client_kwargs)
-    except Exception as e:
-        print(f"[PlanningNode] Error initializing model '{model_name}': {e}")
-        return None
+    if nvidia_key:
+        try:
+            from langchain_nvidia_ai_endpoints import ChatNVIDIA
+            return ChatNVIDIA(
+                model=model_name,
+                api_key=nvidia_key,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout
+            )
+        except Exception as e:
+            print(f"[PlanningNode] Error initializing NVIDIA model '{model_name}': {e}")
+
+    print("[PlanningNode] Warning: No active API key found for GOOGLE_API_KEY or NVIDIA_API_KEY.")
+    return None
+
+
+# Backward-compatibility alias
+get_nvidia_client = get_llm_client
 
 
 def _clean_json_string(raw_text: str) -> str:
@@ -216,7 +234,7 @@ def planning_node(state: StudentState) -> Dict[str, Any]:
     LangGraph Node: Personalized Study Planning.
     1. Reads daily time limit and priority gaps with root causes.
     2. Builds a 7-day time-budgeted curriculum roadmap.
-    3. Leverages dynamic Multi-Model ChatNVIDIA with deterministic fallback.
+    3. Leverages provider-agnostic LLM routing (Gemini primary, NIM fallback) with deterministic fallback.
     """
     target_career = state.get("target_career", "Data Analyst")
     daily_time = state.get("daily_time_minutes") or state.get("time_per_day_mins") or 60
@@ -224,11 +242,11 @@ def planning_node(state: StudentState) -> Dict[str, Any]:
     priority_gaps = state.get("priority_gaps", [])
     grounded_resources = state.get("grounded_resources", [])
 
-    # 1. Multi-Model LLM Planning via ChatNVIDIA
+    # 1. Multi-Model LLM Planning via Generic Client Factory
     target_model = state.get("planning_model") or DEFAULT_PLANNING_MODEL
-    nvidia_client = get_nvidia_client(model_name=target_model)
+    llm_client = get_llm_client(model_name=target_model)
 
-    if nvidia_client:
+    if llm_client:
         try:
             prompt_str = format_planning_prompt(
                 target_career=target_career,
@@ -242,7 +260,7 @@ def planning_node(state: StudentState) -> Dict[str, Any]:
                 SystemMessage(content="You are PathForge's Adaptive Curriculum Planning Agent. Return strictly valid raw JSON."),
                 HumanMessage(content=prompt_str)
             ]
-            response = nvidia_client.invoke(messages)
+            response = llm_client.invoke(messages)
             if response and response.content:
                 cleaned = _clean_json_string(str(response.content))
                 data = json.loads(cleaned)

@@ -1,14 +1,15 @@
 """
-Adaptive Assessment Agent Node (Dynamic Multi-Model NVIDIA NIM)
-===============================================================
+Adaptive Assessment Agent Node (Flexible Multi-Provider AI Inference)
+=====================================================================
 Implements Computerized Adaptive Testing (CAT) for PathForge:
 1. Dynamically navigates prerequisite Knowledge Graph DAG (traverse_up / traverse_down).
 2. Calibrates question difficulty (b) and discrimination (a) to student latent ability (theta).
-3. Generates questions using dynamically selected NVIDIA NIM models via ChatNVIDIA.
+3. Generates questions using a flexible LLM provider factory (ChatGoogleGenerativeAI / ChatNVIDIA).
 4. Seamlessly falls back to pre-seeded curriculum questions if offline/rate-limited.
 5. Evaluates student responses deterministically via 2-PL IRT and BKT (MLEngine).
 """
 
+import ast
 import os
 import json
 import re
@@ -16,7 +17,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from dotenv import load_dotenv
 
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 try:
@@ -38,41 +39,56 @@ for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent
         load_dotenv(dotenv_path=env_path)
         break
 
-# Default fallback model if none specified by caller
-DEFAULT_ASSESSMENT_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b"
+# Default fallback model
+DEFAULT_ASSESSMENT_MODEL = "gemini-3.5-flash-lite"
 
 
-def get_nvidia_client(
+def get_llm_client(
     model_name: str = DEFAULT_ASSESSMENT_MODEL,
     temperature: float = 0.2,
-    max_tokens: int = 4096,
-    enable_thinking: bool = True,
-    reasoning_budget: int = 2048
-) -> Optional[ChatNVIDIA]:
+    max_tokens: int = 2048,
+    timeout: float = 15.0
+) -> Optional[Any]:
     """
-    Dynamically instantiates a ChatNVIDIA client for any specified model ID.
+    Generic LLM client factory configured for strict JSON response MIME type.
     """
-    api_key = os.environ.get("NVIDIA_API_KEY")
-    if not api_key:
-        print("[NVIDIA NIM] Warning: NVIDIA_API_KEY is not set.")
-        return None
+    google_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    nvidia_key = os.environ.get("NVIDIA_API_KEY")
 
-    try:
-        client_kwargs: Dict[str, Any] = {
-            "model": model_name,
-            "api_key": api_key,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        # Configure thinking/reasoning parameters for supported reasoning models
-        if "nemotron" in model_name.lower() or enable_thinking:
-            client_kwargs["reasoning_budget"] = reasoning_budget
-            client_kwargs["chat_template_kwargs"] = {"enable_thinking": True}
+    if google_key and ("gemini" in model_name.lower() or not nvidia_key):
+        try:
+            # Fallback to standard model if an invalid version is passed in state
+            target_model = model_name
+            return ChatGoogleGenerativeAI(
+                model=target_model,
+                google_api_key=google_key,
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+                timeout=timeout,
+                model_kwargs={"response_mime_type": "application/json"}  # Enforces strict JSON syntax
+            )
+        except Exception as e:
+            print(f"[LLM Client] Error initializing Gemini model '{model_name}': {e}")
 
-        return ChatNVIDIA(**client_kwargs)
-    except Exception as e:
-        print(f"[NVIDIA NIM] Error initializing model '{model_name}': {e}")
-        return None
+    if nvidia_key:
+        try:
+            from langchain_nvidia_ai_endpoints import ChatNVIDIA
+            return ChatNVIDIA(
+                model=model_name,
+                api_key=nvidia_key,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout
+            )
+        except Exception as e:
+            print(f"[LLM Client] Error initializing NVIDIA model '{model_name}': {e}")
+
+    print("[LLM Client] Warning: No active API key found for GOOGLE_API_KEY or NVIDIA_API_KEY.")
+    return None
+
+
+# Backward-compatibility alias
+get_nvidia_client = get_llm_client
 
 
 def select_next_concept(state: StudentState) -> str:
@@ -137,7 +153,7 @@ def generate_question(
     model_override: Optional[str] = None
 ) -> QuestionItem:
     """
-    Generates calibrated diagnostic question using dynamic NVIDIA NIM model.
+    Generates calibrated diagnostic question using dynamic LLM client.
     Falls back to pre-seeded curriculum pool if offline/failed.
     """
     concept_node = knowledge_graph.get_concept(concept_id)
@@ -152,9 +168,9 @@ def generate_question(
     # Determine model dynamically (State Override -> Function Arg -> Default)
     target_model = model_override or state.get("assessment_model") or DEFAULT_ASSESSMENT_MODEL
 
-    # Try dynamic LLM Generation via ChatNVIDIA
-    nvidia_client = get_nvidia_client(model_name=target_model)
-    if nvidia_client:
+    # Dynamic LLM Generation via Generic Client
+    llm_client = get_llm_client(model_name=target_model)
+    if llm_client:
         try:
             prompt_str = format_assessment_prompt(
                 concept_id=concept_id,
@@ -172,11 +188,20 @@ def generate_question(
                 SystemMessage(content="You are an expert CAT psychometrician. Respond strictly with valid raw JSON."),
                 HumanMessage(content=prompt_str)
             ]
-            response = nvidia_client.invoke(messages)
+            response = llm_client.invoke(messages)
             if response and response.content:
                 cleaned = _clean_json_string(str(response.content))
-                data = json.loads(cleaned)
-                if all(k in data for k in ["question", "options", "correct_answer"]):
+                
+                # Robust JSON parsing with ast.literal_eval fallback for single-quoted dicts
+                try:
+                    data = json.loads(cleaned)
+                except json.JSONDecodeError:
+                    try:
+                        data = ast.literal_eval(cleaned)
+                    except Exception as eval_err:
+                        raise ValueError(f"Failed to parse JSON content: {eval_err}")
+
+                if isinstance(data, dict) and all(k in data for k in ["question", "options", "correct_answer"]):
                     question_item: QuestionItem = {
                         "id": data.get("id", f"q_{concept_id}_{step}"),
                         "concept_id": concept_id,
@@ -191,19 +216,6 @@ def generate_question(
                         "is_correct": None,
                         "response_time_sec": None
                     }
-                    knowledge_graph.append_dynamic_question(
-                        concept_id,
-                        DiagnosticQuestion(
-                            id=question_item["id"],
-                            concept_id=concept_id,
-                            difficulty=question_item["difficulty"],
-                            question_type=question_item["question_type"],
-                            question=question_item["question"],
-                            options=question_item["options"],
-                            correct_answer=question_item["correct_answer"],
-                            explanation=question_item["explanation"]
-                        )
-                    )
                     return question_item
         except Exception as e:
             print(f"[AssessmentNode] Model '{target_model}' generation error: {e}. Falling back to curriculum.")
