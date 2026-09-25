@@ -11,6 +11,7 @@ import History from './pages/History';
 import Tutor from './pages/Tutor';
 import Progress from './pages/Progress';
 import LearningPlan from './pages/LearningPlan';
+import AssessmentResult from './pages/AssessmentResult';
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
           />
           <Route path="/assessment" element={<ProtectedRoute requireOnboarding><Assessment /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute requireOnboarding><History /></ProtectedRoute>} />
+          <Route path="/history/:assessmentId" element={<ProtectedRoute requireOnboarding><AssessmentResult /></ProtectedRoute>} />
           <Route path="/tutor" element={<ProtectedRoute requireOnboarding><Tutor /></ProtectedRoute>} />
           <Route path="/progress" element={<ProtectedRoute requireOnboarding><Progress /></ProtectedRoute>} />
           <Route path="/learning-plan" element={<ProtectedRoute requireOnboarding><LearningPlan /></ProtectedRoute>} />

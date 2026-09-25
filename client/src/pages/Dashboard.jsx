@@ -165,6 +165,9 @@ export default function Dashboard() {
                       <strong>{gap.career_skill || gap.name || gap.concept || "Skill gap"}</strong>
                       {gap.severity && <span className="ml-2 text-xs uppercase text-slate-500">{gap.severity}</span>}
                       {gap.root_cause_concept && <span className="mt-1 block text-xs text-slate-500">Root cause: {gap.root_cause_concept}</span>}
+                      {gap.current_score != null && gap.required_benchmark != null && <span className="mt-1 block text-xs text-slate-500">Current {Math.round(gap.current_score * 100)}% | Required {Math.round(gap.required_benchmark * 100)}% | Gap {Math.round((gap.gap_size || 0) * 100)}%</span>}
+                      {gap.prerequisite_path?.length > 0 && <span className="mt-1 block text-xs text-slate-500">Path: {gap.prerequisite_path.join(' -> ')}</span>}
+                      <span className="mt-2 flex gap-3 text-xs font-semibold text-indigo-600"><Link to="/learning-plan">Open plan</Link><Link to="/tutor">Ask tutor</Link></span>
                     </span>
                   )}
                 </li>

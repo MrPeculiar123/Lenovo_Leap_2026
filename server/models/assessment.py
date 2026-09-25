@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, Column, DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import CheckConstraint, Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String
 from sqlalchemy.orm import relationship
 
 from core.database import Base
@@ -36,5 +36,6 @@ class AssessmentSession(Base):
     last_activity_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     questions_asked = Column(Integer, nullable=False, default=0)
     career_readiness_score = Column(Float, nullable=True)
+    plan_progress = Column(JSON, nullable=True, default=dict)
 
     user = relationship("User", back_populates="assessment_sessions")

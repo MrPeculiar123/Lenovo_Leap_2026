@@ -118,7 +118,14 @@ async def run_remediation_pipeline_async(
 async def load_persisted_state(thread_id: str) -> Optional[StudentState]:
     return await checkpoint_state(thread_id)
 
+async def update_persisted_state(thread_id: str, updates: Dict[str, Any]) -> Optional[StudentState]:
+    """Persist a bounded partial state update through the official graph API."""
+    graph = get_adaptive_learning_graph()
+    await graph.aupdate_state({"configurable": {"thread_id": thread_id}}, updates)
+    return await checkpoint_state(thread_id)
 
+async def persist_tutor_history(thread_id: str, history: list[Dict[str, str]]) -> Optional[StudentState]:
+    return await update_persisted_state(thread_id, {"tutor_chat_history": history[-10:]})
 def run_next_assessment_step(state: StudentState) -> StudentState:
     result = assessment_node(state)
     updated_state = dict(state)

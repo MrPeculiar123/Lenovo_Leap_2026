@@ -15,15 +15,16 @@ from schemas.navigator import (
     StartAssessmentRequest,
     SubmitAnswerRequest,
     TutorChatRequest,
+    PlanProgressRequest,
 )
 from core.config import settings
 
 try:
-    from agent.graph import get_adaptive_learning_graph, load_persisted_state, run_remediation_pipeline_async
+    from agent.graph import get_adaptive_learning_graph, load_persisted_state, persist_tutor_history, update_persisted_state, run_remediation_pipeline_async
     from agent.nodes.content_tutor import tutor_chat_node
     from agent.state import StudentState
 except ImportError:
-    from server.agent.graph import get_adaptive_learning_graph, load_persisted_state, run_remediation_pipeline_async
+    from server.agent.graph import get_adaptive_learning_graph, load_persisted_state, persist_tutor_history, update_persisted_state, run_remediation_pipeline_async
     from server.agent.nodes.content_tutor import tutor_chat_node
     from server.agent.state import StudentState
 
@@ -88,6 +89,9 @@ def _assessment_response(session: AssessmentSession, state: StudentState) -> Dic
             "language": state.get("language"),
             "question_source": question.get("source") if question else None,
             "assessment_model": state.get("assessment_model", "gemini-3.5-flash-lite"),
+            "theta": (state.get("ml_profile") or {}).get("theta"),
+            "concept_mastery": state.get("concept_mastery", {}),
+            "domain_scores": state.get("domain_scores", {}),
         }
     return response
 
@@ -369,15 +373,48 @@ async def tutor_chat(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    session = _resolve_session(current_user, db, allow_completed=True, lock=False)
+    try:
+        session = _resolve_session(current_user, db, allow_completed=True, lock=False)
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_404_NOT_FOUND:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Complete an assessment before starting a personalized tutor conversation.",
+            ) from exc
+        raise
     state = await _state_for_session(session)
     state["language"] = _normalize_language(req.language or state.get("language") or state.get("primary_language"))
     res = tutor_chat_node(state, student_message=req.message)
+    history = (state.get("tutor_chat_history", []) + res.get("tutor_chat_history", []))[-10:]
+    persisted_state = await persist_tutor_history(session.thread_id, history)
     return {
         "status": "success",
         "reply": res.get("latest_tutor_reply"),
-        "chat_history": (state.get("tutor_chat_history", []) + res.get("tutor_chat_history", [])),
+        "chat_history": (persisted_state or {}).get("tutor_chat_history", history),
+        "target_career": state.get("target_career"),
+        "language": state.get("language"),
     }
+
+
+@router.patch("/learning-plan/progress")
+async def update_learning_plan_progress(
+    req: PlanProgressRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = _resolve_session(current_user, db, allow_completed=True, lock=True)
+    state = await _state_for_session(session)
+    progress = dict(session.plan_progress or {})
+    progress[str(req.day)] = req.completion_status
+    session.plan_progress = progress
+
+    plan = list(state.get("study_plan", []))
+    for item in plan:
+        if int(item.get("day", 0)) == req.day:
+            item["completion_status"] = req.completion_status
+    await update_persisted_state(session.thread_id, {"study_plan": plan})
+    db.commit()
+    return {"status": "success", "day": req.day, "completion_status": req.completion_status, "plan_progress": progress}
 
 
 @router.get("/assessment-history")
@@ -406,9 +443,42 @@ def assessment_history(
                     if session.career_readiness_score is not None
                     else None
                 ),
+                "plan_progress": session.plan_progress or {},
             }
             for session in sessions
         ]
+    }
+
+
+@router.get("/assessment/{assessment_id}")
+async def assessment_detail(
+    assessment_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = _resolve_session(current_user, db, assessment_id, allow_completed=True)
+    state = await _state_for_session(session)
+    return {
+        "status": "success",
+        "assessment_id": session.id,
+        "subject": session.subject,
+        "target_career": session.target_career,
+        "language": session.language,
+        "status_value": session.status,
+        "started_at": session.started_at,
+        "completed_at": session.completed_at,
+        "career_readiness_score": state.get("career_readiness_score"),
+        "is_career_ready": state.get("is_career_ready", False),
+        "domain_scores": state.get("domain_scores", {}),
+        "concept_mastery": state.get("concept_mastery", {}),
+        "priority_gaps": state.get("priority_gaps", []),
+        "grounded_resources": state.get("grounded_resources", []),
+        "tutor_explanation_localized": state.get("tutor_explanation_localized", ""),
+        "study_plan": state.get("study_plan", []),
+        "plan_summary": state.get("plan_summary", ""),
+        "assessment_questions": state.get("assessment_questions", []),
+        "raw_responses": state.get("raw_responses", []),
+        "plan_progress": session.plan_progress or {},
     }
 
 
@@ -442,7 +512,7 @@ async def dashboard_data(
         }
 
     state = await _state_for_session(session)
-    return {
+    response = {
         "status": "success",
         "student_id": str(current_user.id),
         "assessment_id": session.id,
@@ -457,4 +527,12 @@ async def dashboard_data(
         "tutor_explanation_localized": state.get("tutor_explanation_localized", ""),
         "study_plan": state.get("study_plan", []),
         "plan_summary": state.get("plan_summary", ""),
+        "plan_progress": session.plan_progress or {},
     }
+    if settings.DEBUG:
+        response["_debug"] = {
+            "theta": (state.get("ml_profile") or {}).get("theta"),
+            "concept_mastery": state.get("concept_mastery", {}),
+            "domain_scores": state.get("domain_scores", {}),
+        }
+    return response
