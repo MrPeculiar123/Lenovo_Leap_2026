@@ -9,11 +9,8 @@ Implements Computerized Adaptive Testing (CAT) for PathForge:
 5. Evaluates student responses deterministically via 2-PL IRT and BKT (MLEngine).
 """
 
-import ast
 import logging
 import os
-import json
-import re
 import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
@@ -28,6 +25,8 @@ try:
     from services.knowledge_graph import knowledge_graph, DiagnosticQuestion
     from services.ml_engine import ml_engine, StudentMLProfile
     from services.career_benchmarks import career_benchmarks as career_benchmarks_service
+    from schemas.agent_outputs import GeneratedQuestionSchema
+    from services.answer_evaluator import evaluate_answer
     from core.logger import workflow_log
 except ImportError:
     from server.agent.state import StudentState, QuestionItem
@@ -35,6 +34,8 @@ except ImportError:
     from server.services.knowledge_graph import knowledge_graph, DiagnosticQuestion
     from server.services.ml_engine import ml_engine, StudentMLProfile
     from server.services.career_benchmarks import career_benchmarks as career_benchmarks_service
+    from server.schemas.agent_outputs import GeneratedQuestionSchema
+    from server.services.answer_evaluator import evaluate_answer
     from server.core.logger import workflow_log
 
 # Load environment variables
@@ -69,7 +70,6 @@ def get_llm_client(
                 temperature=temperature,
                 max_output_tokens=max_tokens,
                 timeout=timeout,
-                model_kwargs={"response_mime_type": "application/json"}  # Enforces strict JSON syntax
             )
         except Exception as e:
             workflow_log(logging.ERROR, "[LLM]", provider="gemini", model=model_name, status="initialization_failed")
@@ -134,20 +134,6 @@ def compute_target_parameters(profile: StudentMLProfile) -> Tuple[float, float]:
     return normalized_difficulty, discrimination
 
 
-def _clean_json_string(raw_text: str) -> str:
-    """Strips markdown code blocks and reasoning/thinking sections from LLM output."""
-    raw_text = raw_text.strip()
-    if "</think>" in raw_text:
-        raw_text = raw_text.split("</think>")[-1].strip()
-    if raw_text.startswith("```json"):
-        raw_text = raw_text[7:]
-    elif raw_text.startswith("```"):
-        raw_text = raw_text[3:]
-    if raw_text.endswith("```"):
-        raw_text = raw_text[:-3]
-    return raw_text.strip()
-
-
 def generate_question(
     concept_id: str,
     difficulty: float,
@@ -193,21 +179,11 @@ def generate_question(
                 HumanMessage(content=prompt_str)
             ]
             started_at = time.perf_counter()
-            response = llm_client.invoke(messages)
+            response = llm_client.with_structured_output(GeneratedQuestionSchema).invoke(messages)
             duration_ms = round((time.perf_counter() - started_at) * 1000)
-            if response and response.content:
-                cleaned = _clean_json_string(str(response.content))
-                
-                # Robust JSON parsing with ast.literal_eval fallback for single-quoted dicts
-                try:
-                    data = json.loads(cleaned)
-                except json.JSONDecodeError:
-                    try:
-                        data = ast.literal_eval(cleaned)
-                    except Exception as eval_err:
-                        raise ValueError(f"Failed to parse JSON content: {eval_err}")
-
-                if isinstance(data, dict) and all(k in data for k in ["question", "options", "correct_answer"]):
+            if response:
+                data = response.model_dump() if isinstance(response, GeneratedQuestionSchema) else response
+                if isinstance(data, dict):
                     question_item: QuestionItem = {
                         "id": data.get("id", f"q_{concept_id}_{step}"),
                         "concept_id": concept_id,
@@ -221,11 +197,12 @@ def generate_question(
                         "student_answer": None,
                         "is_correct": None,
                         "response_time_sec": None
+                        ,"source": "gemini"
                     }
-                    workflow_log(logging.INFO, "[LLM]", model=target_model, duration_ms=duration_ms, status="success", schema="question")
+                    workflow_log(logging.INFO, "[LLM]", model=target_model, duration_ms=duration_ms, status="success", schema="question", source="gemini")
                     return question_item
         except Exception as e:
-            workflow_log(logging.WARNING, "[LLM]", model=target_model, duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None, status="fallback", schema="question")
+            workflow_log(logging.WARNING, "[LLM]", model=target_model, duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None, status="fallback", schema="question", reason=type(e).__name__)
 
     # Fallback: Pre-seeded question pool
     cached_q = knowledge_graph.get_question_for_concept(
@@ -247,6 +224,7 @@ def generate_question(
             "student_answer": None,
             "is_correct": None,
             "response_time_sec": None
+            ,"source": "curriculum"
         }
 
     # Default fallback question
@@ -268,6 +246,7 @@ def generate_question(
         "student_answer": None,
         "is_correct": None,
         "response_time_sec": None
+        ,"source": "fallback"
     }
 
 
@@ -327,9 +306,11 @@ def record_answer_node(state: StudentState) -> Dict[str, Any]:
     if not current_q or not current_q.get("student_answer"):
         return {"errors": ["No active question or student answer provided to evaluate."]}
 
-    student_ans = current_q["student_answer"].strip().lower()
-    correct_ans = current_q["correct_answer"].strip().lower()
-    is_correct = (student_ans == correct_ans) or (student_ans[:2] == correct_ans[:2])
+    is_correct = evaluate_answer(
+        current_q["student_answer"],
+        current_q["correct_answer"],
+        current_q.get("options", []),
+    )
     response_time = current_q.get("response_time_sec", 25.0) or 25.0
     difficulty = current_q.get("difficulty", 0.5)
     discrimination = current_q.get("discrimination", 1.0)

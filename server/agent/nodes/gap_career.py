@@ -26,12 +26,14 @@ try:
     from agent.prompts import format_gap_career_prompt
     from services.career_benchmarks import career_benchmarks
     from services.knowledge_graph import knowledge_graph
+    from schemas.agent_outputs import GapAnalysisSchema
     from core.logger import workflow_log
 except ImportError:
     from server.agent.state import StudentState, PrioritizedGap
     from server.agent.prompts import format_gap_career_prompt
     from server.services.career_benchmarks import career_benchmarks
     from server.services.knowledge_graph import knowledge_graph
+    from server.schemas.agent_outputs import GapAnalysisSchema
     from server.core.logger import workflow_log
 
 # Load environment variables
@@ -41,6 +43,22 @@ for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent
         break
 
 DEFAULT_GAP_CAREER_MODEL = "gemini-3.5-flash-lite"
+
+
+def _message_text(response: Any) -> str:
+    content = getattr(response, "content", response)
+    if isinstance(content, list):
+        return "".join(
+            item.get("text", "") if isinstance(item, dict) else str(item)
+            for item in content
+        )
+    return str(content)
+
+
+def _parse_gap_output(response: Any) -> GapAnalysisSchema:
+    raw_text = _message_text(response).strip()
+    raw_text = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw_text, flags=re.IGNORECASE).strip()
+    return GapAnalysisSchema.model_validate(json.loads(raw_text))
 
 
 def get_llm_client(
@@ -88,20 +106,6 @@ def get_llm_client(
 
 # Backward-compatibility alias
 get_nvidia_client = get_llm_client
-
-
-def _clean_json_string(raw_text: str) -> str:
-    """Strips thinking blocks and markdown formatting from LLM JSON response."""
-    raw_text = raw_text.strip()
-    if "</think>" in raw_text:
-        raw_text = raw_text.split("</think>")[-1].strip()
-    if raw_text.startswith("```json"):
-        raw_text = raw_text[7:]
-    elif raw_text.startswith("```"):
-        raw_text = raw_text[3:]
-    if raw_text.endswith("```"):
-        raw_text = raw_text[:-3]
-    return raw_text.strip()
 
 
 def gap_career_node(state: StudentState) -> Dict[str, Any]:
@@ -186,12 +190,11 @@ def gap_career_node(state: StudentState) -> Dict[str, Any]:
             ]
             started_at = time.perf_counter()
             response = llm_client.invoke(messages)
-            if response and response.content:
-                cleaned = _clean_json_string(str(response.content))
-                data = json.loads(cleaned)
+            if response:
+                data = _parse_gap_output(response).model_dump()
 
                 # Use LLM refined insights if schema matches
-                if "career_readiness_score" in data and "priority_gaps" in data:
+                if isinstance(data, dict) and "career_readiness_score" in data and "priority_gaps" in data:
                     parsed_gaps: List[PrioritizedGap] = []
                     for pg in data.get("priority_gaps", []):
                         parsed_gaps.append({
@@ -214,7 +217,7 @@ def gap_career_node(state: StudentState) -> Dict[str, Any]:
                         "next_action": "tutor"
                     }
         except Exception as e:
-            workflow_log(logging.WARNING, "[LLM]", model=target_model, status="fallback", schema="gap_analysis", duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None)
+            workflow_log(logging.WARNING, "[LLM]", model=target_model, status="fallback", schema="gap_analysis", duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None, reason=type(e).__name__)
 
     # 4. Deterministic fallback
     return {

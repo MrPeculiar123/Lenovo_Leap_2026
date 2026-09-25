@@ -44,6 +44,10 @@ export default function Dashboard() {
     (data?.career_readiness_score || 0) *
       (data?.career_readiness_score <= 1 ? 100 : 1),
   );
+  const topGap = data?.priority_gaps?.[0];
+  const topGapLabel = typeof topGap === "string"
+    ? topGap
+    : topGap?.career_skill || topGap?.root_cause_concept || "Discover your strengths";
   return (
     <AppShell>
       <div className="mb-8">
@@ -81,7 +85,7 @@ export default function Dashboard() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
           <p className="text-sm text-slate-500">Next focus</p>
           <h2 className="mt-3 text-xl font-bold">
-            {data?.priority_gaps?.[0] || "Discover your strengths"}
+            {topGapLabel}
           </h2>
           <p className="mt-2 text-sm text-slate-500">
             Your personalized recommendations appear here after an assessment.
@@ -154,9 +158,15 @@ export default function Dashboard() {
                   key={`${gap}-${index}`}
                   className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700"
                 >
-                  {typeof gap === "string"
-                    ? gap
-                    : gap.name || gap.concept || JSON.stringify(gap)}
+                  {typeof gap === "string" ? (
+                    gap
+                  ) : (
+                    <span>
+                      <strong>{gap.career_skill || gap.name || gap.concept || "Skill gap"}</strong>
+                      {gap.severity && <span className="ml-2 text-xs uppercase text-slate-500">{gap.severity}</span>}
+                      {gap.root_cause_concept && <span className="mt-1 block text-xs text-slate-500">Root cause: {gap.root_cause_concept}</span>}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -198,10 +208,7 @@ export default function Dashboard() {
                   •{" "}
                   {typeof item === "string"
                     ? item
-                    : item.title ||
-                      item.topic ||
-                      item.description ||
-                      JSON.stringify(item)}
+                    : item.focus_topic || item.title || item.topic || item.description || "Planned activity"}
                 </li>
               ))}
             </ul>

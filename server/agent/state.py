@@ -27,6 +27,7 @@ class QuestionItem(TypedDict, total=False):
     student_answer: Optional[str]
     is_correct: Optional[bool]
     response_time_sec: Optional[float]
+    source: str  # "gemini" | "curriculum" | "fallback"
 
 
 class PrioritizedGap(TypedDict, total=False):
@@ -87,6 +88,7 @@ class StudentState(TypedDict, total=False):
     daily_time_minutes: int               # Added to map time_per_day_mins directly for prompts
     perceived_level: str                  # "Beginner" | "Intermediate" | "Advanced"
     preferred_question_types: List[str]   # ["MCQ", "Scenario-based"]
+    prior_exposure: List[str]
 
     # -------------------------------------------------------------------------
     # 2. Adaptive Assessment & ML Tracking

@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -15,6 +16,7 @@ from schemas.navigator import (
     SubmitAnswerRequest,
     TutorChatRequest,
 )
+from core.config import settings
 
 try:
     from agent.graph import get_adaptive_learning_graph, load_persisted_state, run_remediation_pipeline_async
@@ -31,8 +33,8 @@ TOTAL_ASSESSMENT_STEPS = 8
 
 
 def _normalize_language(value: Optional[str]) -> str:
-    if value is None:
-        return "Marathi"
+    if not value:
+        return "English"
     normalized = str(value).strip().title()
     if normalized not in {"English", "Hindi", "Marathi"}:
         raise HTTPException(
@@ -45,7 +47,7 @@ def _normalize_language(value: Optional[str]) -> str:
 def _public_question(question: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     if not question:
         return None
-    allowed_keys = ("id", "concept_id", "question", "options", "difficulty", "question_type")
+    allowed_keys = ("id", "concept_id", "question", "options", "difficulty", "question_type", "source")
     return {
         key: question[key]
         for key in allowed_keys
@@ -57,15 +59,17 @@ def _assessment_response(session: AssessmentSession, state: StudentState) -> Dic
     """Return one stable response contract for start, resume, and submit."""
     question = _public_question(state.get("current_question"))
     is_complete = bool(state.get("is_assessment_complete", False))
-    return {
+    response = {
         "status": "success",
         "session_id": session.id,
         "assessment_id": session.id,
         "question": question,
+        "target_career": state.get("target_career"),
+        "subject": state.get("subject"),
+        "language": state.get("language"),
         "current_step": state.get("current_step", 0),
         "total_steps": TOTAL_ASSESSMENT_STEPS,
         "is_assessment_complete": is_complete,
-        # Kept for existing clients during the contract transition.
         "is_complete": is_complete,
         "current_question": question,
         "next_question": question,
@@ -77,6 +81,15 @@ def _assessment_response(session: AssessmentSession, state: StudentState) -> Dic
         "study_plan": state.get("study_plan", []),
         "tutor_explanation_localized": state.get("tutor_explanation_localized", ""),
     }
+    if settings.DEBUG:
+        response["_debug"] = {
+            "target_career": state.get("target_career"),
+            "subject": state.get("subject"),
+            "language": state.get("language"),
+            "question_source": question.get("source") if question else None,
+            "assessment_model": state.get("assessment_model", "gemini-3.5-flash-lite"),
+        }
+    return response
 
 
 def _graph_config(session: AssessmentSession) -> Dict[str, Any]:
@@ -84,15 +97,40 @@ def _graph_config(session: AssessmentSession) -> Dict[str, Any]:
 
 
 def _profile_state(user: User, profile: Optional[UserProfile]) -> StudentState:
+    weekly_hours = profile.time_commitment_hrs if (profile and profile.time_commitment_hrs) else 7
+    daily_minutes = max(1, round((weekly_hours * 60) / 7))
+
+    pref_types = profile.preferred_question_types if (profile and profile.preferred_question_types) else ["MCQ"]
+    if isinstance(pref_types, str):
+        try:
+            pref_types = json.loads(pref_types)
+        except Exception:
+            pref_types = ["MCQ"]
+
+    exposure = profile.prior_exposure if (profile and profile.prior_exposure) else []
+    if isinstance(exposure, str):
+        try:
+            exposure = json.loads(exposure)
+        except Exception:
+            exposure = []
+
+    chosen_language = profile.primary_language if (profile and profile.primary_language) else "English"
+    chosen_career = profile.career_goal if (profile and profile.career_goal) else "Data Analyst"
+    chosen_subject = profile.subject if (profile and profile.subject) else "Data Analytics"
+
     return {
         "student_id": str(user.id),
-        "target_career": profile.career_goal if profile and profile.career_goal else "Data Analyst",
-        "subject": profile.subject if profile and profile.subject else "Data Analytics",
-        "language": profile.primary_language if profile and profile.primary_language else "Marathi",
-        "primary_language": profile.primary_language if profile and profile.primary_language else "Marathi",
-        "daily_time_minutes": (profile.time_commitment_hrs * 60) if profile and profile.time_commitment_hrs else 60,
-        "time_per_day_mins": (profile.time_commitment_hrs * 60) if profile and profile.time_commitment_hrs else 60,
-        "perceived_level": profile.perceived_level if profile and profile.perceived_level else "Intermediate",
+        "target_career": chosen_career,
+        "subject": chosen_subject,
+        "language": chosen_language,
+        "primary_language": chosen_language,
+        "time_commitment_hrs": weekly_hours,
+        "daily_time_minutes": daily_minutes,
+        "time_per_day_mins": daily_minutes,
+        "secondary_language": profile.secondary_language if profile else None,
+        "perceived_level": profile.perceived_level if (profile and profile.perceived_level) else "Intermediate",
+        "prior_exposure": exposure,
+        "preferred_question_types": pref_types,
         "asked_question_ids": [],
         "concept_mastery": {},
         "domain_scores": {},
@@ -185,16 +223,29 @@ async def start_assessment(
     db: Session = Depends(get_db),
 ):
     """Creates an attempt or resumes the user's latest unfinished attempt."""
-    session = _latest_in_progress(current_user, db, lock=True)
+    session = None if req.restart else _latest_in_progress(current_user, db, lock=False)
     if session:
         state = await _state_for_session(session)
-        # The checkpoint is authoritative for recovery if a prior SQL commit failed.
         _update_session_metadata(session, state)
         db.commit()
         return _assessment_response(session, state)
 
     profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
-    language = _normalize_language(req.language or (profile.primary_language if profile else None))
+    if not req.restart:
+        latest_completed = (
+            db.query(AssessmentSession)
+            .filter(
+                AssessmentSession.user_id == current_user.id,
+                AssessmentSession.status == "completed",
+            )
+            .order_by(AssessmentSession.completed_at.desc(), AssessmentSession.id.desc())
+            .first()
+        )
+        if latest_completed:
+            return _assessment_response(latest_completed, await _state_for_session(latest_completed))
+    req_lang = req.language or (profile.primary_language if profile else None)
+    language = _normalize_language(req_lang or "English")
+
     session = AssessmentSession(
         user_id=current_user.id,
         thread_id=f"assessment:{uuid.uuid4()}",
@@ -203,7 +254,7 @@ async def start_assessment(
         language=language,
     )
     db.add(session)
-    db.flush()
+    db.commit()  # Release DB transaction before calling LLM/LangSmith async workflow
 
     state = _profile_state(current_user, profile)
     state.update(
@@ -212,12 +263,15 @@ async def start_assessment(
             "subject": session.subject,
             "language": language,
             "primary_language": language,
-            "daily_time_minutes": req.daily_time_minutes or state["daily_time_minutes"],
-            "time_per_day_mins": req.daily_time_minutes or state["time_per_day_mins"],
+            "daily_time_minutes": req.daily_time_minutes if req.daily_time_minutes is not None else state["daily_time_minutes"],
+            "time_per_day_mins": req.daily_time_minutes if req.daily_time_minutes is not None else state["time_per_day_mins"],
             "perceived_level": req.perceived_level or state["perceived_level"],
         }
     )
+
     updated_state = await get_adaptive_learning_graph().ainvoke(state, config=_graph_config(session))
+
+    db.refresh(session)
     _update_session_metadata(session, updated_state)
     db.commit()
 
@@ -235,7 +289,7 @@ async def submit_answer(
         current_user,
         db,
         req.assessment_id,
-        lock=True,
+        lock=False,
     )
     state = await _state_for_session(session)
     if req.question_id and req.question_id == state.get("last_submitted_question_id"):
@@ -258,10 +312,13 @@ async def submit_answer(
     question_with_answer = dict(current_question)
     question_with_answer["student_answer"] = answer
     question_with_answer["response_time_sec"] = req.response_time_sec or 20.0
+
     updated_state = await get_adaptive_learning_graph().ainvoke(
         {"current_question": question_with_answer},
         config=_graph_config(session),
     )
+
+    db.refresh(session)
     _update_session_metadata(session, updated_state)
     db.commit()
 
@@ -274,7 +331,7 @@ async def analyze_and_plan(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    session = _resolve_session(current_user, db, allow_completed=True)
+    session = _resolve_session(current_user, db, allow_completed=True, lock=False)
     state = await _state_for_session(session)
     graph_updates: StudentState = {}
     if req.target_career:
@@ -289,8 +346,11 @@ async def analyze_and_plan(
         graph_updates["domain_scores"] = req.domain_scores
 
     result_state = await run_remediation_pipeline_async(graph_updates, config=_graph_config(session))
+
+    db.refresh(session)
     _update_session_metadata(session, result_state)
     db.commit()
+
     return {
         "status": "success",
         "career_readiness_score": result_state.get("career_readiness_score"),
@@ -309,9 +369,9 @@ async def tutor_chat(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    session = _resolve_session(current_user, db, allow_completed=True)
+    session = _resolve_session(current_user, db, allow_completed=True, lock=False)
     state = await _state_for_session(session)
-    state["language"] = _normalize_language(req.language)
+    state["language"] = _normalize_language(req.language or state.get("language") or state.get("primary_language"))
     res = tutor_chat_node(state, student_message=req.message)
     return {
         "status": "success",

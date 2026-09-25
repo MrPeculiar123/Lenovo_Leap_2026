@@ -15,11 +15,12 @@ class PublicQuestion(BaseModel):
 
 
 class StartAssessmentRequest(BaseModel):
-    target_career: Optional[str] = "Data Analyst"
-    subject: Optional[str] = "Data Analytics"
-    language: Optional[str] = "Marathi"
-    daily_time_minutes: Optional[int] = Field(default=60, gt=0, le=480)
-    perceived_level: Optional[str] = "Intermediate"
+    target_career: Optional[str] = None
+    subject: Optional[str] = None
+    language: Optional[str] = None
+    daily_time_minutes: Optional[int] = Field(default=None, gt=0, le=480)
+    perceived_level: Optional[str] = None
+    restart: bool = False
 
     @field_validator("target_career", "subject", "language", "perceived_level")
     @classmethod
@@ -71,10 +72,10 @@ class SubmitAnswerRequest(BaseModel):
 
 
 class AnalyzeAndPlanRequest(BaseModel):
-    target_career: Optional[str] = "Data Analyst"
-    subject: Optional[str] = "Data Analytics"
-    language: Optional[str] = "Marathi"
-    daily_time_minutes: Optional[int] = Field(default=60, gt=0, le=480)
+    target_career: Optional[str] = None
+    subject: Optional[str] = None
+    language: Optional[str] = None
+    daily_time_minutes: Optional[int] = Field(default=None, gt=0, le=480)
     domain_scores: Optional[Dict[str, float]] = None
 
     @field_validator("target_career", "subject", "language")
@@ -115,7 +116,7 @@ class AnalyzeAndPlanRequest(BaseModel):
 
 class TutorChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
-    language: Optional[str] = "Marathi"
+    language: Optional[str] = None
 
     @field_validator("message")
     @classmethod

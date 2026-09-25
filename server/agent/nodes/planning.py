@@ -24,10 +24,12 @@ from langchain_core.messages import SystemMessage, HumanMessage
 try:
     from agent.state import StudentState, DailyPlanItem, GroundedResource
     from agent.prompts import format_planning_prompt
+    from schemas.agent_outputs import StudyPlanSchema
     from core.logger import workflow_log
 except ImportError:
     from server.agent.state import StudentState, DailyPlanItem, GroundedResource
     from server.agent.prompts import format_planning_prompt
+    from server.schemas.agent_outputs import StudyPlanSchema
     from server.core.logger import workflow_log
 
 # Load environment variables
@@ -37,6 +39,22 @@ for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent
         break
 
 DEFAULT_PLANNING_MODEL = "gemini-3.5-flash-lite"
+
+
+def _message_text(response: Any) -> str:
+    content = getattr(response, "content", response)
+    if isinstance(content, list):
+        return "".join(
+            item.get("text", "") if isinstance(item, dict) else str(item)
+            for item in content
+        )
+    return str(content)
+
+
+def _parse_plan_output(response: Any) -> StudyPlanSchema:
+    raw_text = _message_text(response).strip()
+    raw_text = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw_text, flags=re.IGNORECASE).strip()
+    return StudyPlanSchema.model_validate(json.loads(raw_text))
 
 
 def get_llm_client(
@@ -84,20 +102,6 @@ def get_llm_client(
 
 # Backward-compatibility alias
 get_nvidia_client = get_llm_client
-
-
-def _clean_json_string(raw_text: str) -> str:
-    """Strips thinking blocks and markdown formatting from LLM JSON response."""
-    raw_text = raw_text.strip()
-    if "</think>" in raw_text:
-        raw_text = raw_text.split("</think>")[-1].strip()
-    if raw_text.startswith("```json"):
-        raw_text = raw_text[7:]
-    elif raw_text.startswith("```"):
-        raw_text = raw_text[3:]
-    if raw_text.endswith("```"):
-        raw_text = raw_text[:-3]
-    return raw_text.strip()
 
 
 def _generate_fallback_plan(
@@ -266,13 +270,27 @@ def planning_node(state: StudentState) -> Dict[str, Any]:
             ]
             started_at = time.perf_counter()
             response = llm_client.invoke(messages)
-            if response and response.content:
-                cleaned = _clean_json_string(str(response.content))
-                data = json.loads(cleaned)
+            if response:
+                data = _parse_plan_output(response).model_dump()
 
-                if "study_plan" in data and isinstance(data["study_plan"], list):
+                if isinstance(data, dict) and "study_plan" in data and isinstance(data["study_plan"], list):
+                    available_resource_ids = {resource.get("id") for resource in grounded_resources}
+                    returned_resource_ids = {
+                        resource_id
+                        for day_data in data["study_plan"]
+                        for resource_id in day_data.get("recommended_resource_ids", [])
+                    }
+                    unknown_resource_ids = returned_resource_ids - available_resource_ids
+                    if unknown_resource_ids:
+                        raise ValueError("study plan referenced unavailable resources")
                     plan_items: List[DailyPlanItem] = []
                     for idx, day_data in enumerate(data["study_plan"], 1):
+                        activity_minutes = sum(
+                            int(activity.get("duration_minutes", 0))
+                            for activity in day_data.get("activities", [])
+                        )
+                        if activity_minutes > daily_time:
+                            raise ValueError("study plan activity time exceeds daily budget")
                         plan_items.append({
                             "day": day_data.get("day", idx),
                             "focus_topic": day_data.get("focus_topic", f"Day {idx} Topic"),
@@ -290,7 +308,7 @@ def planning_node(state: StudentState) -> Dict[str, Any]:
                         "next_action": "complete"
                     }
         except Exception as e:
-            workflow_log(logging.WARNING, "[LLM]", model=target_model, status="fallback", schema="study_plan", duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None)
+            workflow_log(logging.WARNING, "[LLM]", model=target_model, status="fallback", schema="study_plan", duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None, reason=type(e).__name__)
 
     # 2. Deterministic Fallback
     fallback_data = _generate_fallback_plan(
