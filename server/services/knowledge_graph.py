@@ -31,6 +31,7 @@ class DiagnosticQuestion:
     options: List[str]
     correct_answer: str
     explanation: str
+    localized_questions: Dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -107,6 +108,7 @@ class KnowledgeGraph:
                     options=list(q["options"]),
                     correct_answer=q["correct_answer"],
                     explanation=q["explanation"]
+                    ,localized_questions=dict(q.get("localized_questions", {}))
                 )
                 for q in item.get("questions", [])
             ]

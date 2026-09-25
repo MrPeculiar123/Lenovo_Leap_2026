@@ -5,6 +5,7 @@ from core.database import get_db
 from models.user import User, UserProfile
 from routers.auth import get_current_user
 from schemas.onboarding import OnboardingRequest, OnboardingResponse
+from services.career_benchmarks import career_benchmarks
 
 
 router = APIRouter(
@@ -37,6 +38,12 @@ def complete_onboarding(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if not career_benchmarks.get_role(request.career_goal):
+        supported = ", ".join(role["title"] for role in career_benchmarks.supported_roles())
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unsupported career path. Choose one of: {supported}.",
+        )
     profile = (
         db.query(UserProfile)
         .filter(UserProfile.user_id == current_user.id)
@@ -71,4 +78,4 @@ def complete_onboarding(
     db.commit()
     db.refresh(profile)
 
-    return profile
+    return profile

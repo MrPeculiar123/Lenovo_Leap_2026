@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -19,6 +20,8 @@ from schemas.navigator import (
     PlanProgressRequest,
 )
 from core.config import settings
+from services.career_benchmarks import career_benchmarks
+from services.checkpoint_store import get_checkpointer
 
 try:
     from agent.graph import get_adaptive_learning_graph, load_persisted_state, persist_tutor_history, update_persisted_state, run_remediation_pipeline_async
@@ -260,7 +263,25 @@ async def start_assessment(
     """Creates an attempt or resumes the user's latest unfinished attempt."""
     session = None if req.restart else _latest_in_progress(current_user, db, lock=False)
     if session:
-        state = await _state_for_session(session)
+        try:
+            state = await _state_for_session(session)
+        except HTTPException:
+            # A failed first LLM call can leave SQL metadata without a checkpoint.
+            # Abandon that attempt so refresh can create a clean recoverable one.
+            session.status = "abandoned"
+            session.last_activity_at = datetime.utcnow()
+            db.commit()
+            session = None
+        if session is None:
+            return await start_assessment(req.model_copy(update={"restart": True}), current_user, db)
+        if not state.get("is_assessment_complete") and not state.get("current_question"):
+            try:
+                state = await get_adaptive_learning_graph().ainvoke(state, config=_graph_config(session))
+            except Exception as exc:
+                session.status = "abandoned"
+                session.last_activity_at = datetime.utcnow()
+                db.commit()
+                raise HTTPException(status_code=503, detail="Assessment recovery failed. Please start a new assessment.") from exc
         _update_session_metadata(session, state)
         db.commit()
         return _assessment_response(session, state)
@@ -280,12 +301,15 @@ async def start_assessment(
             return _assessment_response(latest_completed, await _state_for_session(latest_completed))
     req_lang = req.language or (profile.primary_language if profile else None)
     language = _normalize_language(req_lang or "English")
+    requested_career = req.target_career or (profile.career_goal if profile else "Data Analyst")
+    if not career_benchmarks.get_role(requested_career):
+        raise HTTPException(status_code=422, detail="Unsupported career path. Complete onboarding with a supported pathway.")
 
     session = AssessmentSession(
         user_id=current_user.id,
         thread_id=f"assessment:{uuid.uuid4()}",
         subject=req.subject or (profile.subject if profile else "Data Analytics"),
-        target_career=req.target_career or (profile.career_goal if profile else "Data Analyst"),
+        target_career=requested_career,
         language=language,
     )
     db.add(session)
@@ -304,7 +328,13 @@ async def start_assessment(
         }
     )
 
-    updated_state = await get_adaptive_learning_graph().ainvoke(state, config=_graph_config(session))
+    try:
+        updated_state = await get_adaptive_learning_graph().ainvoke(state, config=_graph_config(session))
+    except Exception as exc:
+        session.status = "abandoned"
+        session.last_activity_at = datetime.utcnow()
+        db.commit()
+        raise HTTPException(status_code=503, detail="Assessment could not start. Refresh to retry with a new attempt.") from exc
 
     db.refresh(session)
     _update_session_metadata(session, updated_state)
@@ -451,7 +481,7 @@ async def update_learning_plan_progress(
 
 
 @router.get("/assessment-history")
-def assessment_history(
+async def assessment_history(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -461,9 +491,10 @@ def assessment_history(
         .order_by(AssessmentSession.started_at.desc(), AssessmentSession.id.desc())
         .all()
     )
-    return {
-        "assessments": [
-            {
+    assessments = []
+    for session in sessions:
+        state = await _state_for_session(session)
+        assessments.append({
                 "id": session.id,
                 "subject": session.subject,
                 "target_career": session.target_career,
@@ -477,10 +508,25 @@ def assessment_history(
                     else None
                 ),
                 "plan_progress": session.plan_progress or {},
-            }
-            for session in sessions
-        ]
-    }
+                "domain_scores": state.get("domain_scores", {}),
+                "concept_mastery": state.get("concept_mastery", {}),
+            })
+    return {"assessments": assessments}
+
+
+@router.get("/health")
+def navigator_health(db: Session = Depends(get_db)):
+    checks = {"database": "ok", "checkpointing": "ok"}
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        checks["database"] = "unavailable"
+    try:
+        get_checkpointer()
+    except RuntimeError:
+        checks["checkpointing"] = "unavailable"
+    healthy = all(value == "ok" for value in checks.values())
+    return {"status": "ok" if healthy else "degraded", "checks": checks}
 
 
 @router.get("/assessment/{assessment_id}")

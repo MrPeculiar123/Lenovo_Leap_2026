@@ -5,6 +5,12 @@ import { Empty } from './Dashboard';
 
 const completedSession = session => session?.is_assessment_complete ?? session?.is_complete;
 
+const COPY = {
+  English: { eyebrow: 'Skill check', title: 'Assessment', intro: 'Understand where you are today so we can shape the right path.', restoring: 'Restoring your assessment...', complete: 'Assessment complete', completeText: 'Your readiness profile is ready. Review your results or start a new attempt when you are ready.', retryPlan: 'Retry plan generation', newAttempt: 'Start new assessment', adaptive: 'Adaptive', submit: 'Submit answer', saving: 'Saving...', path: 'Path', subject: 'Subject', language: 'Language', question: 'Question' },
+  Hindi: { eyebrow: 'कौशल जांच', title: 'आकलन', intro: 'आप आज कहाँ हैं यह समझकर हम आपके लिए सही सीखने का मार्ग बनाएंगे।', restoring: 'आपका आकलन फिर से लोड हो रहा है...', complete: 'आकलन पूरा हुआ', completeText: 'आपकी तैयारी की प्रोफ़ाइल तैयार है। परिणाम देखें या नया प्रयास शुरू करें।', retryPlan: 'योजना फिर बनाएं', newAttempt: 'नया आकलन शुरू करें', adaptive: 'अनुकूलित', submit: 'उत्तर जमा करें', saving: 'सहेजा जा रहा है...', path: 'मार्ग', subject: 'विषय', language: 'भाषा', question: 'प्रश्न' },
+  Marathi: { eyebrow: 'कौशल्य तपासणी', title: 'मूल्यांकन', intro: 'तुमची सद्यस्थिती समजून योग्य शिकण्याचा मार्ग तयार करूया.', restoring: 'तुमचे मूल्यांकन पुन्हा लोड होत आहे...', complete: 'मूल्यांकन पूर्ण', completeText: 'तुमची तयारी प्रोफाइल तयार आहे. निकाल पहा किंवा नवीन प्रयत्न सुरू करा.', retryPlan: 'योजना पुन्हा तयार करा', newAttempt: 'नवीन मूल्यांकन सुरू करा', adaptive: 'अनुकूलित', submit: 'उत्तर पाठवा', saving: 'जतन होत आहे...', path: 'मार्ग', subject: 'विषय', language: 'भाषा', question: 'प्रश्न' },
+};
+
 export default function Assessment() {
   const [session, setSession] = useState(null);
   const [answer, setAnswer] = useState('');
@@ -108,20 +114,21 @@ export default function Assessment() {
   const completed = completedSession(session);
   const question = session?.question || session?.current_question;
   const hasPlan = Boolean(session?.study_plan?.length || session?.plan?.study_plan?.length);
+  const copy = COPY[session?.language] || COPY.English;
 
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl">
-        <p className="text-sm font-medium text-indigo-600">Skill check</p>
-        <h1 className="mt-2 text-3xl font-bold">Assessment</h1>
-        <p className="mt-2 text-slate-500">Understand where you are today so we can shape the right path.</p>
+        <p className="text-sm font-medium text-indigo-600">{copy.eyebrow}</p>
+        <h1 className="mt-2 text-3xl font-bold">{copy.title}</h1>
+        <p className="mt-2 text-slate-500">{copy.intro}</p>
         {error && <p className="mt-5 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
 
         {loading && !session ? (
-          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">Restoring your assessment...</div>
+          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500">{copy.restoring}</div>
         ) : completed ? (
           <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8">
-            <Empty title="Assessment complete" text="Your readiness profile is ready. Review your results or start a new attempt when you are ready." />
+            <Empty title={copy.complete} text={copy.completeText} />
             {session._debug && (
               <div className="mt-4 rounded-lg bg-slate-50 p-3 text-left text-xs text-slate-600">
                 <div>Career: {session._debug.target_career} | Subject: {session._debug.subject}</div>
@@ -133,23 +140,22 @@ export default function Assessment() {
             <div className="mt-5 flex flex-wrap gap-3">
               {!hasPlan && (
                 <button disabled={planning} onClick={generatePlan} className="rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
-                  {planning ? 'Generating plan...' : 'Retry plan generation'}
+                  {planning ? copy.saving : copy.retryPlan}
                 </button>
               )}
               <button disabled={restarting} onClick={startNewAssessment} className="rounded-lg border border-indigo-200 px-5 py-3 text-sm font-semibold text-indigo-700 disabled:opacity-50">
-                {restarting ? 'Starting...' : 'Start new assessment'}
+                {restarting ? copy.saving : copy.newAttempt}
               </button>
             </div>
           </div>
         ) : session ? (
           <form onSubmit={submit} className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
             <div className="mb-6 flex items-center justify-between text-sm text-slate-500">
-              <span>Question {session.current_step || 1} of {session.total_steps || 8}</span>
-              <span className="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">Adaptive</span>
+              <span>{copy.question} {session.current_step || 1} / {session.total_steps || 8}</span>
+              <span className="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">{copy.adaptive}</span>
             </div>
-            <p className="mb-3 text-xs text-slate-400">Path: {session.target_career || 'Unknown'} | Subject: {session.subject || 'Unknown'} | Language: {session.language || 'Unknown'}</p>
+            <p className="mb-3 text-xs text-slate-400">{copy.path}: {session.target_career || 'Unknown'} | {copy.subject}: {session.subject || 'Unknown'} | {copy.language}: {session.language || 'Unknown'}</p>
             <h2 className="text-xl font-semibold leading-8">{question?.question || 'Loading question...'}</h2>
-            {question?.source && <p className="mt-2 text-xs text-slate-400">Question source: {question.source}</p>}
             {session._debug && (
               <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
                 Career: {session._debug.target_career} | Subject: {session._debug.subject} | Language: {session._debug.language} | Model: {session._debug.assessment_model}
@@ -169,7 +175,7 @@ export default function Assessment() {
             )}
             {question?.options?.length > 0 && <input value={answer} onChange={event => setAnswer(event.target.value)} className="sr-only" aria-label="Selected answer" />}
             <button disabled={loading || !answer.trim()} className="mt-6 rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
-              {loading ? 'Saving...' : 'Submit answer'}
+              {loading ? copy.saving : copy.submit}
             </button>
           </form>
         ) : null}

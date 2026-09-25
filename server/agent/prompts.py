@@ -35,6 +35,7 @@ Your role is to generate a single, highly calibrated diagnostic question to asse
 - Question Type: {question_type}
 - Student Perceived Level: {perceived_level}
 - Target Career: {target_career}
+- Learner Language: {language}
 
 ### Previously Asked Questions (DO NOT DUPLICATE):
 {asked_questions_summary}
@@ -49,7 +50,8 @@ Your role is to generate a single, highly calibrated diagnostic question to asse
    - "Scenario-based": Real-world workplace problem faced by a {target_career}, testing judgment or decision-making.
    - "Coding": Short code snippet analysis (predict output, locate bug, or complete syntax).
 3. Distractors (incorrect options) must represent common misconceptions rather than random nonsense.
-4. Output MUST be valid JSON conforming exactly to the schema below. Do not include markdown ticks or commentary.
+4. Write the learner-facing question, options, and explanation in {language}. Keep technical identifiers, code, SQL keywords, API names, and mathematical notation in their original form.
+5. Output MUST be valid JSON conforming exactly to the schema below. Do not include markdown ticks or commentary.
 
 ### JSON Output Schema:
 {{
@@ -273,6 +275,7 @@ def format_assessment_prompt(
     question_type: str,
     perceived_level: str,
     target_career: str,
+    language: str = "English",
     step: int = 1,
     asked_questions: Optional[List[str]] = None
 ) -> str:
@@ -287,6 +290,7 @@ def format_assessment_prompt(
         question_type=question_type,
         perceived_level=perceived_level,
         target_career=target_career,
+        language=language or "English",
         step=step,
         asked_questions_summary=asked_summary
     )

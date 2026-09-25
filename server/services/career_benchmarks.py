@@ -94,8 +94,12 @@ class CareerBenchmarkService:
             if role.title.lower() == target or target in role.title.lower():
                 return role
 
-        # Default fallback to Data Analyst if no match
-        return self.roles.get("data_analyst")
+        # Unknown roles must be handled explicitly by the API. Falling back to
+        # Data Analyst silently misrepresents the learner's selected pathway.
+        return None
+
+    def supported_roles(self) -> List[Dict[str, str]]:
+        return [{"id": role.id, "title": role.title} for role in self.roles.values()]
 
     # -------------------------------------------------------------------------
     # Readiness Score Calculation

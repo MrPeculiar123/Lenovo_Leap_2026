@@ -98,6 +98,90 @@
         "sql_window_functions",
         "python_data_structures"
       ]
+    },
+    {
+      "id": "software_engineer",
+      "title": "Software Engineer",
+      "description": "Builds reliable software systems using programming fundamentals, data structures, algorithms, and testing practices.",
+      "required_skills": {
+        "Python": 0.85,
+        "Algorithms": 0.80,
+        "Software Engineering": 0.75
+      },
+      "skill_weights": {
+        "Python": 0.40,
+        "Algorithms": 0.35,
+        "Software Engineering": 0.25
+      },
+      "critical_concepts": ["python_basics", "python_data_structures", "algorithms", "software_testing"]
+    },
+    {
+      "id": "ai_engineer",
+      "title": "AI Engineer",
+      "description": "Develops machine-learning applications by combining Python, data preparation, statistics, and responsible model evaluation.",
+      "required_skills": {
+        "Python": 0.85,
+        "Statistics": 0.75,
+        "Machine Learning": 0.75,
+        "Data Engineering": 0.60
+      },
+      "skill_weights": {
+        "Python": 0.35,
+        "Statistics": 0.25,
+        "Machine Learning": 0.25,
+        "Data Engineering": 0.15
+      },
+      "critical_concepts": ["python_basics", "python_data_structures", "pandas_data_cleaning", "descriptive_stats", "inferential_stats", "ml_fundamentals", "data_engineering"]
+    },
+    {
+      "id": "cybersecurity_engineer",
+      "title": "Cybersecurity Engineer",
+      "description": "Protects applications and infrastructure through secure programming, data reasoning, threat analysis, and operational discipline.",
+      "required_skills": {
+        "Python": 0.75,
+        "Cybersecurity": 0.80,
+        "Algorithms": 0.65,
+        "Statistics": 0.55
+      },
+      "skill_weights": {
+        "Cybersecurity": 0.40,
+        "Python": 0.30,
+        "Algorithms": 0.20,
+        "Statistics": 0.10
+      },
+      "critical_concepts": ["python_basics", "python_data_structures", "algorithms", "cybersecurity_fundamentals", "inferential_stats"]
+    },
+    {
+      "id": "product_manager",
+      "title": "Product Manager",
+      "description": "Turns user needs and evidence into product priorities, measurable outcomes, and clear delivery decisions.",
+      "required_skills": {
+        "Product Strategy": 0.75,
+        "Data Visualization": 0.70,
+        "Statistics": 0.65
+      },
+      "skill_weights": {
+        "Product Strategy": 0.40,
+        "Data Visualization": 0.30,
+        "Statistics": 0.30
+      },
+      "critical_concepts": ["product_strategy", "descriptive_stats", "inferential_stats", "viz_fundamentals", "dashboard_design"]
+    },
+    {
+      "id": "entrepreneur",
+      "title": "Entrepreneur",
+      "description": "Validates opportunities, interprets evidence, and builds informed experiments from customer and business signals.",
+      "required_skills": {
+        "Business Analysis": 0.75,
+        "Statistics": 0.65,
+        "Data Visualization": 0.60
+      },
+      "skill_weights": {
+        "Business Analysis": 0.40,
+        "Statistics": 0.35,
+        "Data Visualization": 0.25
+      },
+      "critical_concepts": ["business_validation", "descriptive_stats", "inferential_stats", "viz_fundamentals", "dashboard_design"]
     }
   ]
 }

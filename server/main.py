@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     await close_checkpointer()
 
 app = FastAPI(
-    title="Learning Navigator API",
+    title="PathForge API",
     lifespan=lifespan,
 )
 
@@ -47,5 +47,11 @@ app.include_router(navigator_router, prefix="/api")
 @app.get("/")
 def root():
     return {
-        "message": "Learning Navigator API is running"
+        "message": "PathForge API is running",
+        "environment": settings.ENVIRONMENT,
     }
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "pathforge-api", "environment": settings.ENVIRONMENT}
