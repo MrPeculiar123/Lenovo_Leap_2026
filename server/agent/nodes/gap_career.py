@@ -9,9 +9,11 @@ Combines Career Benchmark Matching with Knowledge Graph Root-Cause Traversal:
 5. Employs provider-agnostic LLM routing (Gemini primary, NIM fallback) with deterministic fallback.
 """
 
+import logging
 import os
 import json
 import re
+import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
@@ -24,11 +26,13 @@ try:
     from agent.prompts import format_gap_career_prompt
     from services.career_benchmarks import career_benchmarks
     from services.knowledge_graph import knowledge_graph
+    from core.logger import workflow_log
 except ImportError:
     from server.agent.state import StudentState, PrioritizedGap
     from server.agent.prompts import format_gap_career_prompt
     from server.services.career_benchmarks import career_benchmarks
     from server.services.knowledge_graph import knowledge_graph
+    from server.core.logger import workflow_log
 
 # Load environment variables
 for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent.parent / ".env"]:
@@ -63,7 +67,7 @@ def get_llm_client(
                 timeout=timeout
             )
         except Exception as e:
-            print(f"[GapCareerNode] Error initializing Gemini model '{model_name}': {e}")
+            workflow_log(logging.ERROR, "[LLM]", provider="gemini", model=model_name, status="initialization_failed")
 
     if nvidia_key:
         try:
@@ -76,9 +80,9 @@ def get_llm_client(
                 timeout=timeout
             )
         except Exception as e:
-            print(f"[GapCareerNode] Error initializing NVIDIA model '{model_name}': {e}")
+            workflow_log(logging.ERROR, "[LLM]", provider="nvidia", model=model_name, status="initialization_failed")
 
-    print("[GapCareerNode] Warning: No active API key found for GOOGLE_API_KEY or NVIDIA_API_KEY.")
+    workflow_log(logging.WARNING, "[LLM]", model=model_name, status="no_provider_available")
     return None
 
 
@@ -180,6 +184,7 @@ def gap_career_node(state: StudentState) -> Dict[str, Any]:
                 SystemMessage(content="You are an expert Career & Learning Gap Intelligence Agent. Output strictly raw JSON."),
                 HumanMessage(content=prompt_str)
             ]
+            started_at = time.perf_counter()
             response = llm_client.invoke(messages)
             if response and response.content:
                 cleaned = _clean_json_string(str(response.content))
@@ -209,7 +214,7 @@ def gap_career_node(state: StudentState) -> Dict[str, Any]:
                         "next_action": "tutor"
                     }
         except Exception as e:
-            print(f"[GapCareerNode] LLM refinement error with '{target_model}': {e}. Using deterministic synthesis.")
+            workflow_log(logging.WARNING, "[LLM]", model=target_model, status="fallback", schema="gap_analysis", duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None)
 
     # 4. Deterministic fallback
     return {

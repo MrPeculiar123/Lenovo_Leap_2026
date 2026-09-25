@@ -27,6 +27,7 @@ except ImportError:
 
 
 router = APIRouter(prefix="/navigator", tags=["Navigator Agent"])
+TOTAL_ASSESSMENT_STEPS = 8
 
 
 def _normalize_language(value: Optional[str]) -> str:
@@ -49,6 +50,32 @@ def _public_question(question: Optional[Dict[str, Any]]) -> Optional[Dict[str, A
         key: question[key]
         for key in allowed_keys
         if key in question and question[key] is not None
+    }
+
+
+def _assessment_response(session: AssessmentSession, state: StudentState) -> Dict[str, Any]:
+    """Return one stable response contract for start, resume, and submit."""
+    question = _public_question(state.get("current_question"))
+    is_complete = bool(state.get("is_assessment_complete", False))
+    return {
+        "status": "success",
+        "session_id": session.id,
+        "assessment_id": session.id,
+        "question": question,
+        "current_step": state.get("current_step", 0),
+        "total_steps": TOTAL_ASSESSMENT_STEPS,
+        "is_assessment_complete": is_complete,
+        # Kept for existing clients during the contract transition.
+        "is_complete": is_complete,
+        "current_question": question,
+        "next_question": question,
+        "ml_profile": state.get("ml_profile"),
+        "concept_mastery": state.get("concept_mastery", {}),
+        "domain_scores": state.get("domain_scores", {}),
+        "career_readiness_score": state.get("career_readiness_score"),
+        "priority_gaps": state.get("priority_gaps", []),
+        "study_plan": state.get("study_plan", []),
+        "tutor_explanation_localized": state.get("tutor_explanation_localized", ""),
     }
 
 
@@ -161,14 +188,10 @@ async def start_assessment(
     session = _latest_in_progress(current_user, db, lock=True)
     if session:
         state = await _state_for_session(session)
-        question = state.get("current_question")
-        return {
-            "status": "success",
-            "assessment_id": session.id,
-            "current_step": state.get("current_step", 1),
-            "is_complete": state.get("is_assessment_complete", False),
-            "question": _public_question(question),
-        }
+        # The checkpoint is authoritative for recovery if a prior SQL commit failed.
+        _update_session_metadata(session, state)
+        db.commit()
+        return _assessment_response(session, state)
 
     profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
     language = _normalize_language(req.language or (profile.primary_language if profile else None))
@@ -198,13 +221,7 @@ async def start_assessment(
     _update_session_metadata(session, updated_state)
     db.commit()
 
-    return {
-        "status": "success",
-        "assessment_id": session.id,
-        "current_step": updated_state.get("current_step", 1),
-        "is_complete": updated_state.get("is_assessment_complete", False),
-        "question": _public_question(updated_state.get("current_question")),
-    }
+    return _assessment_response(session, updated_state)
 
 
 @router.post("/submit-answer")
@@ -221,6 +238,10 @@ async def submit_answer(
         lock=True,
     )
     state = await _state_for_session(session)
+    if req.question_id and req.question_id == state.get("last_submitted_question_id"):
+        _update_session_metadata(session, state)
+        db.commit()
+        return _assessment_response(session, state)
     current_question = state.get("current_question")
     if not current_question:
         raise HTTPException(
@@ -244,22 +265,7 @@ async def submit_answer(
     _update_session_metadata(session, updated_state)
     db.commit()
 
-    public_question = _public_question(updated_state.get("current_question"))
-    return {
-        "status": "success",
-        "assessment_id": session.id,
-        "current_step": updated_state.get("current_step", 1),
-        "is_complete": updated_state.get("is_assessment_complete", False),
-        "current_question": public_question,
-        "next_question": public_question,
-        "ml_profile": updated_state.get("ml_profile"),
-        "concept_mastery": updated_state.get("concept_mastery", {}),
-        "domain_scores": updated_state.get("domain_scores", {}),
-        "career_readiness_score": updated_state.get("career_readiness_score"),
-        "priority_gaps": updated_state.get("priority_gaps", []),
-        "study_plan": updated_state.get("study_plan", []),
-        "tutor_explanation_localized": updated_state.get("tutor_explanation_localized", ""),
-    }
+    return _assessment_response(session, updated_state)
 
 
 @router.post("/analyze-and-plan")

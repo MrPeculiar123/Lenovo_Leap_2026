@@ -104,6 +104,8 @@ class StudentState(TypedDict, total=False):
     domain_scores: Dict[str, float]       # Macro-level scores: e.g. {"SQL": 0.43, "Python": 0.82}
     is_assessment_complete: bool
     current_step: int                     # e.g., question 1 of 8
+    last_submitted_question_id: Optional[str]
+    last_submission_response_time_sec: Optional[float]
 
     # -------------------------------------------------------------------------
     # 3. Gap Analysis & Career Mapping (Combined Node)

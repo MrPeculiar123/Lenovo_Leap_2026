@@ -6,7 +6,9 @@ via the official google-genai SDK to ground AI Tutor responses and study plannin
 """
 
 import json
+import logging
 import os
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
@@ -14,6 +16,11 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from pinecone import Pinecone
+
+try:
+    from core.logger import workflow_log
+except ImportError:
+    from server.core.logger import workflow_log
 
 # Ensure environment variables are loaded
 for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent / ".env"]:
@@ -68,7 +75,7 @@ class RAGService:
                 self.pc = Pinecone(api_key=self.pinecone_api_key)
                 self.pinecone_index = self.pc.Index(self.index_name)
             except Exception as e:
-                print(f"[RAGService] Warning: Could not connect to Pinecone: {e}")
+                workflow_log(logging.WARNING, "[RAG]", operation="pinecone_init", status="fallback")
 
         # Initialize Google GenAI Client (official SDK)
         self.gemini_api_key = os.environ.get("GEMINI_API_KEY", "")
@@ -77,7 +84,7 @@ class RAGService:
             try:
                 self.genai_client = genai.Client(api_key=self.gemini_api_key)
             except Exception as e:
-                print(f"[RAGService] Warning: Could not initialize google-genai Client: {e}")
+                workflow_log(logging.WARNING, "[RAG]", operation="embedding_init", status="fallback")
 
     def _resolve_data_path(self, data_path: Optional[str] = None) -> Path:
         """Finds educational_content.json across common execution directories."""
@@ -120,13 +127,16 @@ class RAGService:
     def search_by_concept(self, concept_id: str, limit: int = 2) -> List[Dict[str, Any]]:
         """Instant O(1) concept lookup for root-cause prerequisite gaps."""
         items = self.concept_index.get(concept_id.strip().lower(), [])
-        return [r.to_dict() for r in items[:limit]]
+        results = [r.to_dict() for r in items[:limit]]
+        workflow_log(logging.DEBUG, "[RAG]", query_type="concept", result_count=len(results))
+        return results
 
     def search_by_query(self, query: str, limit: int = 3) -> List[Dict[str, Any]]:
         """Performs dense vector search against Pinecone using 1536-dim gemini-embedding-2-preview."""
         if not query.strip() or not self.pinecone_index or not self.genai_client:
             return []
 
+        started_at = time.perf_counter()
         try:
             resp = self.genai_client.models.embed_content(
                 model="gemini-embedding-2-preview",
@@ -158,9 +168,10 @@ class RAGService:
                 }
                 results.append(item)
 
+            workflow_log(logging.INFO, "[RAG]", query_type="vector", result_count=len(results), top_score=results[0].get("similarity_score") if results else None, duration_ms=round((time.perf_counter() - started_at) * 1000))
             return results
         except Exception as e:
-            print(f"[RAGService] Vector query error: {e}")
+            workflow_log(logging.WARNING, "[RAG]", query_type="vector", status="fallback", duration_ms=round((time.perf_counter() - started_at) * 1000))
             return []
 
     def get_resources_for_gaps(

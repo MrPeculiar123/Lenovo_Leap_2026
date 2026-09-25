@@ -10,10 +10,12 @@ from routers.onboarding import router as onboarding_router
 from routers.navigator import router as navigator_router
 from services.checkpoint_store import close_checkpointer, initialize_checkpointer
 from agent.graph import initialize_graphs
+from core.logger import configure_logging
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_logging()
     await initialize_checkpointer()
     initialize_graphs()
     yield

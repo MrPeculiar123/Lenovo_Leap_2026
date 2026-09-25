@@ -8,9 +8,15 @@ Implements deterministic student modeling algorithms:
 4. Adaptive test termination evaluation (Terminal Graph Node detection).
 """
 
+import logging
 import math
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field, asdict
+
+try:
+    from core.logger import workflow_log
+except ImportError:
+    from server.core.logger import workflow_log
 
 
 @dataclass
@@ -233,6 +239,9 @@ class MLEngine:
         })
 
         profile.is_terminal = self._check_terminal_condition(profile)
+
+        workflow_log(logging.DEBUG, "[IRT]", question=profile.questions_count, correct=is_correct, theta=round(new_theta, 3), difficulty=difficulty)
+        workflow_log(logging.DEBUG, "[BKT]", concept=concept_id, mastery=new_mastery, struggle_risk=profile.struggle_risk)
 
         if profile.is_terminal:
             next_action = "terminal"

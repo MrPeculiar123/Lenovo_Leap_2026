@@ -8,10 +8,16 @@ duplicate question filtering, and fallback hooks for dynamic LLM generation.
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 import networkx as nx
+
+try:
+    from core.logger import workflow_log
+except ImportError:
+    from server.core.logger import workflow_log
 
 
 @dataclass
@@ -169,7 +175,9 @@ class KnowledgeGraph:
         # Sort successors by (depth_level, difficulty_baseline)
         successor_nodes = [self.concept_nodes[s_id] for s_id in successors if s_id in self.concept_nodes]
         successor_nodes.sort(key=lambda n: (n.depth_level, n.difficulty_baseline))
-        return successor_nodes[0].id if successor_nodes else None
+        next_concept = successor_nodes[0].id if successor_nodes else None
+        workflow_log(logging.DEBUG, "[DAG]", direction="up", current=current_concept_id, next=next_concept)
+        return next_concept
 
     def traverse_down(self, current_concept_id: str) -> Optional[str]:
         """
@@ -187,7 +195,9 @@ class KnowledgeGraph:
         # Pick the most immediate prerequisite with highest depth
         prereq_nodes = [self.concept_nodes[p_id] for p_id in predecessors if p_id in self.concept_nodes]
         prereq_nodes.sort(key=lambda n: (-n.depth_level, -n.difficulty_baseline))
-        return prereq_nodes[0].id if prereq_nodes else None
+        next_concept = prereq_nodes[0].id if prereq_nodes else None
+        workflow_log(logging.DEBUG, "[DAG]", direction="down", current=current_concept_id, next=next_concept)
+        return next_concept
 
     def get_root_causes(self, failed_concept_id: str) -> List[str]:
         """

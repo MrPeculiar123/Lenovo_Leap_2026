@@ -9,9 +9,11 @@ Creates an adaptive 7-day daily study roadmap:
 5. Employs provider-agnostic LLM routing (Gemini primary, NIM fallback) with deterministic fallback.
 """
 
+import logging
 import os
 import json
 import re
+import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
@@ -22,9 +24,11 @@ from langchain_core.messages import SystemMessage, HumanMessage
 try:
     from agent.state import StudentState, DailyPlanItem, GroundedResource
     from agent.prompts import format_planning_prompt
+    from core.logger import workflow_log
 except ImportError:
     from server.agent.state import StudentState, DailyPlanItem, GroundedResource
     from server.agent.prompts import format_planning_prompt
+    from server.core.logger import workflow_log
 
 # Load environment variables
 for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent.parent / ".env"]:
@@ -59,7 +63,7 @@ def get_llm_client(
                 timeout=timeout
             )
         except Exception as e:
-            print(f"[PlanningNode] Error initializing Gemini model '{model_name}': {e}")
+            workflow_log(logging.ERROR, "[LLM]", provider="gemini", model=model_name, status="initialization_failed")
 
     if nvidia_key:
         try:
@@ -72,9 +76,9 @@ def get_llm_client(
                 timeout=timeout
             )
         except Exception as e:
-            print(f"[PlanningNode] Error initializing NVIDIA model '{model_name}': {e}")
+            workflow_log(logging.ERROR, "[LLM]", provider="nvidia", model=model_name, status="initialization_failed")
 
-    print("[PlanningNode] Warning: No active API key found for GOOGLE_API_KEY or NVIDIA_API_KEY.")
+    workflow_log(logging.WARNING, "[LLM]", model=model_name, status="no_provider_available")
     return None
 
 
@@ -260,6 +264,7 @@ def planning_node(state: StudentState) -> Dict[str, Any]:
                 SystemMessage(content="You are PathForge's Adaptive Curriculum Planning Agent. Return strictly valid raw JSON."),
                 HumanMessage(content=prompt_str)
             ]
+            started_at = time.perf_counter()
             response = llm_client.invoke(messages)
             if response and response.content:
                 cleaned = _clean_json_string(str(response.content))
@@ -278,13 +283,14 @@ def planning_node(state: StudentState) -> Dict[str, Any]:
                             "completion_status": "pending"
                         })
 
+                    workflow_log(logging.INFO, "[LLM]", model=target_model, duration_ms=round((time.perf_counter() - started_at) * 1000), status="success", schema="study_plan")
                     return {
                         "study_plan": plan_items,
                         "plan_summary": data.get("plan_summary", f"7-Day remediation plan for {target_career}"),
                         "next_action": "complete"
                     }
         except Exception as e:
-            print(f"[PlanningNode] Error generating plan with '{target_model}': {e}. Using deterministic fallback.")
+            workflow_log(logging.WARNING, "[LLM]", model=target_model, status="fallback", schema="study_plan", duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None)
 
     # 2. Deterministic Fallback
     fallback_data = _generate_fallback_plan(

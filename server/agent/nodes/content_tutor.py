@@ -9,8 +9,10 @@ Combines RAG Educational Retrieval with Culturally Resonant Regional Tutoring:
 5. Employs provider-agnostic LLM routing (Gemini primary, NIM fallback) with robust local fallback.
 """
 
+import logging
 import os
 import json
+import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
@@ -22,10 +24,12 @@ try:
     from agent.state import StudentState, GroundedResource
     from agent.prompts import format_regional_tutor_prompt, format_tutor_chat_prompt
     from services.rag_service import rag_service
+    from core.logger import workflow_log
 except ImportError:
     from server.agent.state import StudentState, GroundedResource
     from server.agent.prompts import format_regional_tutor_prompt, format_tutor_chat_prompt
     from server.services.rag_service import rag_service
+    from server.core.logger import workflow_log
 
 # Load environment variables
 for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent.parent / ".env"]:
@@ -60,7 +64,7 @@ def get_llm_client(
                 timeout=timeout
             )
         except Exception as e:
-            print(f"[ContentTutorNode] Error initializing Gemini model '{model_name}': {e}")
+            workflow_log(logging.ERROR, "[LLM]", provider="gemini", model=model_name, status="initialization_failed")
 
     if nvidia_key:
         try:
@@ -73,9 +77,9 @@ def get_llm_client(
                 timeout=timeout
             )
         except Exception as e:
-            print(f"[ContentTutorNode] Error initializing NVIDIA model '{model_name}': {e}")
+            workflow_log(logging.ERROR, "[LLM]", provider="nvidia", model=model_name, status="initialization_failed")
 
-    print("[ContentTutorNode] Warning: No active API key found for GOOGLE_API_KEY or NVIDIA_API_KEY.")
+    workflow_log(logging.WARNING, "[LLM]", model=model_name, status="no_provider_available")
     return None
 
 
@@ -153,11 +157,13 @@ def content_tutor_node(state: StudentState) -> Dict[str, Any]:
                 SystemMessage(content=f"You are PathForge's Regional AI Mentor. Teach in {language} with code in English."),
                 HumanMessage(content=prompt_str)
             ]
+            started_at = time.perf_counter()
             response = llm_client.invoke(messages)
             if response and response.content:
                 explanation = _clean_thinking_blocks(str(response.content))
+                workflow_log(logging.INFO, "[LLM]", model=target_model, duration_ms=round((time.perf_counter() - started_at) * 1000), status="success", schema="tutor_text")
         except Exception as e:
-            print(f"[ContentTutorNode] Error generating explanation with '{target_model}': {e}")
+            workflow_log(logging.WARNING, "[LLM]", model=target_model, status="fallback", schema="tutor_text", duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None)
 
     # Fallback explanation if model is offline or empty
     if not explanation:
@@ -248,11 +254,13 @@ def tutor_chat_node(
                     messages.append(SystemMessage(content=turn.get("content", "")))
             messages.append(HumanMessage(content=student_message))
 
+            started_at = time.perf_counter()
             response = llm_client.invoke(messages)
             if response and response.content:
                 assistant_reply = _clean_thinking_blocks(str(response.content))
+                workflow_log(logging.INFO, "[LLM]", model=target_model, duration_ms=round((time.perf_counter() - started_at) * 1000), status="success", schema="tutor_text")
         except Exception as e:
-            print(f"[TutorChatNode] Error: {e}")
+            workflow_log(logging.WARNING, "[LLM]", model=target_model, status="fallback", schema="tutor_text", duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None)
 
     if not assistant_reply:
         assistant_reply = f"I'm here to help you master {current_concept}. Could you share what specific part of this topic feels challenging?"
