@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    FRONTEND_ORIGINS: str = "https://pathforge-frontend.s3.ap-south-1.amazonaws.com,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+    FRONTEND_ORIGINS: str = "https://d3d4jyfauogbco.cloudfront.net,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
     DEBUG: bool = False
 
     model_config = SettingsConfigDict(
