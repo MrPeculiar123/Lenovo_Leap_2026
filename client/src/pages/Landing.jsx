@@ -150,7 +150,7 @@ export function Landing() {
 
       {/* Footer */}
       <footer className="mt-auto py-8 border-t border-slate-900 bg-slate-950 text-center text-xs text-slate-500">
-        <p>© 2026 Learning Navigator. Built for Lenovo Leap 2026. All rights reserved.</p>
+        <p>© 2026 PathForge. Built for Lenovo Leap 2026. All rights reserved.</p>
       </footer>
     </div>
   );

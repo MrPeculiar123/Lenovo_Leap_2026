@@ -22,7 +22,7 @@ export function Navbar() {
             </div>
             <div className="flex flex-col">
               <span className="font-bold text-lg text-white tracking-tight flex items-center gap-1.5">
-                Learning Navigator
+                PathForge
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                   AI
                 </span>
