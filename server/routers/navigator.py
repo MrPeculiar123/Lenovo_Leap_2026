@@ -1,4 +1,5 @@
 import json
+import ast
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -56,6 +57,35 @@ def _public_question(question: Optional[Dict[str, Any]]) -> Optional[Dict[str, A
     }
 
 
+def _normalize_tutor_history(history: Any) -> list[Dict[str, str]]:
+    """Convert current and legacy checkpoint turns into a stable text contract."""
+    normalized: list[Dict[str, str]] = []
+    for turn in history or []:
+        if not isinstance(turn, dict):
+            continue
+        content = turn.get("content", "")
+        if isinstance(content, list):
+            content = "".join(
+                item.get("text", "") if isinstance(item, dict) else str(item)
+                for item in content
+            )
+        elif isinstance(content, str) and content.lstrip().startswith("[{"):
+            try:
+                blocks = ast.literal_eval(content)
+                if isinstance(blocks, list):
+                    content = "".join(
+                        item.get("text", "") if isinstance(item, dict) else str(item)
+                        for item in blocks
+                    )
+            except (SyntaxError, ValueError):
+                pass
+        normalized.append({
+            "role": "user" if turn.get("role") == "user" else "assistant",
+            "content": str(content),
+        })
+    return normalized[-10:]
+
+
 def _assessment_response(session: AssessmentSession, state: StudentState) -> Dict[str, Any]:
     """Return one stable response contract for start, resume, and submit."""
     question = _public_question(state.get("current_question"))
@@ -80,6 +110,7 @@ def _assessment_response(session: AssessmentSession, state: StudentState) -> Dic
         "career_readiness_score": state.get("career_readiness_score"),
         "priority_gaps": state.get("priority_gaps", []),
         "study_plan": state.get("study_plan", []),
+        "tutor_chat_history": _normalize_tutor_history(state.get("tutor_chat_history", [])),
         "tutor_explanation_localized": state.get("tutor_explanation_localized", ""),
     }
     if settings.DEBUG:
@@ -385,12 +416,14 @@ async def tutor_chat(
     state = await _state_for_session(session)
     state["language"] = _normalize_language(req.language or state.get("language") or state.get("primary_language"))
     res = tutor_chat_node(state, student_message=req.message)
-    history = (state.get("tutor_chat_history", []) + res.get("tutor_chat_history", []))[-10:]
+    history = _normalize_tutor_history(state.get("tutor_chat_history", []))
+    history = _normalize_tutor_history(history + res.get("tutor_chat_history", []))
     persisted_state = await persist_tutor_history(session.thread_id, history)
     return {
         "status": "success",
         "reply": res.get("latest_tutor_reply"),
-        "chat_history": (persisted_state or {}).get("tutor_chat_history", history),
+        "chat_history": _normalize_tutor_history((persisted_state or {}).get("tutor_chat_history", history)),
+        "grounded_resources": state.get("grounded_resources", []),
         "target_career": state.get("target_career"),
         "language": state.get("language"),
     }
@@ -473,6 +506,7 @@ async def assessment_detail(
         "concept_mastery": state.get("concept_mastery", {}),
         "priority_gaps": state.get("priority_gaps", []),
         "grounded_resources": state.get("grounded_resources", []),
+        "tutor_chat_history": _normalize_tutor_history(state.get("tutor_chat_history", [])),
         "tutor_explanation_localized": state.get("tutor_explanation_localized", ""),
         "study_plan": state.get("study_plan", []),
         "plan_summary": state.get("plan_summary", ""),
@@ -524,6 +558,7 @@ async def dashboard_data(
         "concept_mastery": state.get("concept_mastery", {}),
         "priority_gaps": state.get("priority_gaps", []),
         "grounded_resources": state.get("grounded_resources", []),
+        "tutor_chat_history": _normalize_tutor_history(state.get("tutor_chat_history", [])),
         "tutor_explanation_localized": state.get("tutor_explanation_localized", ""),
         "study_plan": state.get("study_plan", []),
         "plan_summary": state.get("plan_summary", ""),

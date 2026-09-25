@@ -291,13 +291,18 @@ def planning_node(state: StudentState) -> Dict[str, Any]:
                         )
                         if activity_minutes > daily_time:
                             raise ValueError("study plan activity time exceeds daily budget")
+                        selected_resource_ids = set(day_data.get("recommended_resource_ids", []))
+                        selected_resources = [
+                            resource for resource in grounded_resources
+                            if resource.get("id") in selected_resource_ids
+                        ] or grounded_resources[:2]
                         plan_items.append({
                             "day": day_data.get("day", idx),
                             "focus_topic": day_data.get("focus_topic", f"Day {idx} Topic"),
                             "duration_minutes": day_data.get("duration_minutes", daily_time),
                             "learning_objectives": day_data.get("learning_objectives", []),
                             "activities": day_data.get("activities", []),
-                            "recommended_resources": grounded_resources[:2],
+                            "recommended_resources": selected_resources,
                             "completion_status": "pending"
                         })
 

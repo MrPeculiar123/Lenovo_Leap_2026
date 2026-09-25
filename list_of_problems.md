@@ -4,6 +4,16 @@ Project: AI in Education and Skill Learning
 
 This document tracks the current defects, incomplete workflows, and improvement work identified during repository review. Items are ordered by implementation dependency and demo risk. The Gemini model switch is treated as intentional; provider-specific concerns are listed separately from the core workflow defects.
 
+## Preserved Implementation Status
+
+The completed fixes from Phases 1–3 remain part of this checklist and should not be regressed. Current Phase 4 progress:
+
+- [x] Tutor history is persisted and restored in the tutor UI.
+- [x] Tutor responses expose grounded resources and support language selection.
+- [x] Learning-plan and tutor resources open through safe external links when a URL is available.
+- [x] Onboarding choices are aligned with the four benchmark-backed data pathways: Data Analyst, Business Intelligence Analyst, Data Scientist, and Data Engineer.
+- [ ] Add broader non-data career packages or explicitly keep them out of onboarding until curriculum, benchmarks, questions, and resources exist.
+
 ## Priority 0: Runtime and Workflow Blockers
 
 ### P0-00: Add structured, colorized workflow logging

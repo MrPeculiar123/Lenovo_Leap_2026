@@ -18,7 +18,7 @@ from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 
 try:
     from agent.state import StudentState, GroundedResource
@@ -95,6 +95,17 @@ def _clean_thinking_blocks(raw_text: str) -> str:
     return raw_text
 
 
+def _message_text(response: Any) -> str:
+    """Safely extracts text from a string response or content block list."""
+    content = getattr(response, "content", response)
+    if isinstance(content, list):
+        return "".join(
+            item.get("text", "") if isinstance(item, dict) else str(item)
+            for item in content
+        )
+    return str(content)
+
+
 def content_tutor_node(state: StudentState) -> Dict[str, Any]:
     """
     LangGraph Node: Combined Content Retrieval & Regional Tutoring.
@@ -160,52 +171,36 @@ def content_tutor_node(state: StudentState) -> Dict[str, Any]:
             started_at = time.perf_counter()
             response = llm_client.invoke(messages)
             if response and response.content:
-                explanation = _clean_thinking_blocks(str(response.content))
+                explanation = _clean_thinking_blocks(_message_text(response))
                 workflow_log(logging.INFO, "[LLM]", model=target_model, duration_ms=round((time.perf_counter() - started_at) * 1000), status="success", schema="tutor_text")
         except Exception as e:
             workflow_log(logging.WARNING, "[LLM]", model=target_model, status="fallback", schema="tutor_text", duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None)
 
     # Fallback explanation if model is offline or empty
     if not explanation:
+        concept_name = target_concept_id.replace("_", " ").title()
+        reference = grounded_items[0] if grounded_items else None
+        reference_text = reference.get("content_snippet", "") if reference else ""
         if language.lower() == "marathi":
             explanation = (
-                f"### {target_concept_id.replace('_', ' ').title()} - संकल्पना स्पष्टीकरण (मराठी)\n\n"
-                f"मित्रा, `{target_concept_id}` ही संकल्पना समजणे डेटा ॲनालिटिक्समध्ये अत्यंत महत्त्वाचे आहे. "
-                f"समजा आपल्याकडे दोन स्वतंत्र टेबल्स आहेत. डेटा एकत्र करण्यासाठी आपण `JOIN` किंवा `PRIMARY KEY` वापरतो.\n\n"
-                f"**उदा. SQL Query:**\n"
-                f"```sql\n"
-                f"SELECT a.id, a.name, b.department\n"
-                f"FROM employees a\n"
-                f"JOIN departments b ON a.dept_id = b.id;\n"
-                f"```\n\n"
-                f"ही संकल्पना स्पष्ट झाली का? काही अडचण असल्यास खालील चॅटमध्ये विचारा!"
+                f"### {concept_name} - संकल्पना स्पष्टीकरण (मराठी)\n\n"
+                f"मित्रा, `{concept_name}` ही संकल्पना तुमच्या {target_career} मार्गासाठी महत्त्वाची आहे. आधी मुख्य कल्पना समजून घेऊया, मग छोट्या उदाहरणाने सराव करूया.\n\n"
+                f"**अभ्यासासाठी संकेत:** {reference_text or 'ही संकल्पना छोट्या उदाहरणात समजावून घेऊन लगेच स्वतःच्या शब्दांत पुन्हा सांगण्याचा प्रयत्न करा.'}\n\n"
+                f"ही संकल्पना स्पष्ट झाली का?"
             )
         elif language.lower() == "hindi":
             explanation = (
-                f"### {target_concept_id.replace('_', ' ').title()} - मुख्य अवधारणा (हिंदी)\n\n"
-                f"`{target_concept_id}` को समझना डेटा एनालिटिक्स में आपकी सफलता के लिए बहुत महत्वपूर्ण है। "
-                f"जैसे किसी स्टोर में इन्वेंटरी और सेल्स डेटा को लिंक किया जाता है, वैसे ही डेटाबेस में हम `PRIMARY KEY` और `FOREIGN KEY` का उपयोग करते हैं।\n\n"
-                f"**उदाहरण SQL Query:**\n"
-                f"```sql\n"
-                f"SELECT a.id, a.name, b.department\n"
-                f"FROM employees a\n"
-                f"JOIN departments b ON a.dept_id = b.id;\n"
-                f"```\n\n"
-                f"क्या यह उदाहरण स्पष्ट है? कोई भी सवाल हो तो बेझिझक पूछें!"
+                f"### {concept_name} - मुख्य अवधारणा (हिंदी)\n\n"
+                f"`{concept_name}` को समझना आपके {target_career} learning path के लिए महत्वपूर्ण है। पहले मुख्य विचार समझें और फिर एक छोटे उदाहरण से अभ्यास करें।\n\n"
+                f"**अध्ययन संकेत:** {reference_text or 'इस concept को अपने शब्दों में समझाकर देखें और फिर एक छोटा अभ्यास हल करें।'}\n\n"
+                f"क्या यह उदाहरण स्पष्ट है?"
             )
         else:
             explanation = (
-                f"### Mastering {target_concept_id.replace('_', ' ').title()}\n\n"
-                f"To excel as a {target_career}, mastering `{target_concept_id}` is a foundational prerequisite.\n\n"
-                f"**Core Concept:**\n"
-                f"Databases store related data across structured entities. Linking these records accurately requires understanding relationship keys and predicates.\n\n"
-                f"**Practical Example:**\n"
-                f"```sql\n"
-                f"SELECT a.id, a.name, b.department\n"
-                f"FROM employees a\n"
-                f"INNER JOIN departments b ON a.dept_id = b.id;\n"
-                f"```\n\n"
-                f"Review the grounded reference documents below, and feel free to ask any clarifying questions!"
+                f"### Mastering {concept_name}\n\n"
+                f"To excel as a {target_career}, mastering `{concept_name}` is an important step.\n\n"
+                f"**Core idea:** {reference_text or 'Break the concept into one small rule, one worked example, and one practice question.'}\n\n"
+                f"Review the grounded reference documents below, then ask me about any part that feels unclear."
             )
 
     return {
@@ -251,13 +246,13 @@ def tutor_chat_node(
                 if turn.get("role") == "user":
                     messages.append(HumanMessage(content=turn.get("content", "")))
                 else:
-                    messages.append(SystemMessage(content=turn.get("content", "")))
+                    messages.append(AIMessage(content=turn.get("content", "")))
             messages.append(HumanMessage(content=student_message))
 
             started_at = time.perf_counter()
             response = llm_client.invoke(messages)
             if response and response.content:
-                assistant_reply = _clean_thinking_blocks(str(response.content))
+                assistant_reply = _clean_thinking_blocks(_message_text(response))
                 workflow_log(logging.INFO, "[LLM]", model=target_model, duration_ms=round((time.perf_counter() - started_at) * 1000), status="success", schema="tutor_text")
         except Exception as e:
             workflow_log(logging.WARNING, "[LLM]", model=target_model, status="fallback", schema="tutor_text", duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None)

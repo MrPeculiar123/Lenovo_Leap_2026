@@ -14,3 +14,72 @@
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+.tutor-markdown {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #1e293b;
+}
+
+.tutor-markdown-user {
+  color: #ffffff;
+}
+
+.tutor-markdown > :first-child {
+  margin-top: 0;
+}
+
+.tutor-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.tutor-markdown h1,
+.tutor-markdown h2,
+.tutor-markdown h3 {
+  margin: 0.8rem 0 0.35rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.tutor-markdown h1 { font-size: 1.15rem; }
+.tutor-markdown h2 { font-size: 1.05rem; }
+.tutor-markdown h3 { font-size: 0.98rem; }
+.tutor-markdown p { margin: 0.45rem 0; }
+.tutor-markdown ul,
+.tutor-markdown ol { margin: 0.5rem 0; padding-left: 1.25rem; }
+.tutor-markdown ul { list-style: disc; }
+.tutor-markdown ol { list-style: decimal; }
+.tutor-markdown li { margin: 0.2rem 0; }
+.tutor-markdown a { color: #4f46e5; text-decoration: underline; }
+.tutor-markdown-user a { color: #e0e7ff; }
+.tutor-markdown strong { font-weight: 700; }
+.tutor-markdown code {
+  border-radius: 0.3rem;
+  background: #e2e8f0;
+  padding: 0.1rem 0.3rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em;
+}
+.tutor-markdown-user code { background: rgba(255, 255, 255, 0.18); }
+.tutor-markdown pre {
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 0.6rem;
+  background: #0f172a;
+  padding: 0.8rem;
+  color: #e2e8f0;
+}
+.tutor-markdown pre code {
+  display: block;
+  overflow-wrap: normal;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 0.82rem;
+}
+.tutor-markdown blockquote {
+  margin: 0.6rem 0;
+  border-left: 3px solid #818cf8;
+  padding-left: 0.75rem;
+  color: #475569;
+}
