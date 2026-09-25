@@ -122,7 +122,7 @@ class StudentState(TypedDict, total=False):
     # -------------------------------------------------------------------------
     grounded_resources: Annotated[List[GroundedResource], operator.add]
     tutor_explanation_localized: str      # Explanation in Marathi / Hindi / English
-    tutor_chat_history: Annotated[List[Dict[str, str]], operator.add] # [{'role': 'user'|'assistant', 'content': '...'}]
+    tutor_chat_history: List[Dict[str, str]] # bounded [{'role': 'user'|'assistant', 'content': '...'}]
 
     # -------------------------------------------------------------------------
     # 5. Personalized Study Planning

@@ -39,6 +39,8 @@ export const api = {
   submitAnswer: (payload) => request('/navigator/submit-answer', { method: 'POST', body: JSON.stringify(payload) }),
   getDashboard: () => request('/navigator/dashboard-data'),
   getAssessmentHistory: () => request('/navigator/assessment-history'),
+  getAssessmentDetail: (assessmentId) => request(`/navigator/assessment/${assessmentId}`),
+  updatePlanProgress: (day, completion_status) => request('/navigator/learning-plan/progress', { method: 'PATCH', body: JSON.stringify({ day, completion_status }) }),
   analyzeAndPlan: (payload = {}) => request('/navigator/analyze-and-plan', { method: 'POST', body: JSON.stringify(payload) }),
   tutorChat: (message, language) => request('/navigator/tutor/chat', { method: 'POST', body: JSON.stringify({ message, language }) }),
 };

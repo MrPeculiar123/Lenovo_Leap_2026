@@ -20,23 +20,18 @@ import {
 } from 'lucide-react';
 
 const SUBJECT_OPTIONS = [
-  'Computer Science',
+  'Data Analytics',
   'Data Science',
-  'Artificial Intelligence',
-  'Cybersecurity',
-  'Web Development',
-  'Finance',
+  'Business Intelligence',
+  'Data Engineering',
   'Other',
 ];
 
 const CAREER_GOALS = [
-  'Software Engineer',
+  'Data Analyst',
+  'Business Intelligence Analyst',
   'Data Scientist',
-  'AI Engineer',
-  'Cybersecurity Engineer',
-  'Product Manager',
-  'Entrepreneur',
-  'Other',
+  'Data Engineer',
 ];
 
 const TIME_COMMITMENT_OPTIONS = [
@@ -90,9 +85,9 @@ export function Onboarding() {
   const navigate = useNavigate();
 
   // Form State
-  const [subject, setSubject] = useState('Computer Science');
+  const [subject, setSubject] = useState('Data Analytics');
   const [customSubject, setCustomSubject] = useState('');
-  const [careerGoal, setCareerGoal] = useState('Software Engineer');
+  const [careerGoal, setCareerGoal] = useState('Data Analyst');
   const [customCareerGoal, setCustomCareerGoal] = useState('');
   const [timeCommitmentHrs, setTimeCommitmentHrs] = useState(15);
 
@@ -344,7 +339,7 @@ export function Onboarding() {
 
               {/* Weekly Time Commitment */}
               <div className="space-y-3">
-                <label className="block text-sm font-medium text-slate-300 flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-indigo-400" />
                   Weekly Time Commitment
                 </label>

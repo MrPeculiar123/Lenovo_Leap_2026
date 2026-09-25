@@ -135,3 +135,16 @@ class TutorChatRequest(BaseModel):
         if normalized not in ALLOWED_LANGUAGES:
             raise ValueError("Unsupported language. Use English, Hindi, or Marathi.")
         return normalized
+
+
+class PlanProgressRequest(BaseModel):
+    day: int = Field(ge=1, le=7)
+    completion_status: str
+
+    @field_validator("completion_status")
+    @classmethod
+    def _validate_completion_status(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in {"pending", "completed"}:
+            raise ValueError("completion_status must be pending or completed")
+        return normalized
