@@ -28,7 +28,9 @@ def route_after_assessment(state: StudentState) -> Literal["gap_career", "evalua
     return "__end__"
 
 
-def route_after_answer_eval(state: StudentState) -> Literal["gap_career", "assessment"]:
+def route_after_answer_eval(state: StudentState) -> Literal["gap_career", "assessment", "__end__"]:
+    if state.get("pause_after_evaluation") and not state.get("is_assessment_complete", False):
+        return "__end__"
     return "gap_career" if state.get("is_assessment_complete", False) else "assessment"
 
 
@@ -48,7 +50,7 @@ def _workflow() -> StateGraph:
     workflow.add_conditional_edges(
         "evaluate_answer",
         route_after_answer_eval,
-        {"gap_career": "gap_career", "assessment": "assessment"},
+        {"gap_career": "gap_career", "assessment": "assessment", "__end__": END},
     )
     workflow.add_edge("gap_career", "content_tutor")
     workflow.add_edge("content_tutor", "planning")

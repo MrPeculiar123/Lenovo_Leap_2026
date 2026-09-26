@@ -20,18 +20,24 @@ import {
 } from 'lucide-react';
 
 const SUBJECT_OPTIONS = [
-  'Data Analytics',
+  'Computer Science',
   'Data Science',
-  'Business Intelligence',
-  'Data Engineering',
+  'Artificial Intelligence',
+  'Cybersecurity',
+  'Web Development',
+  'Finance',
   'Other',
 ];
 
 const CAREER_GOALS = [
   'Data Analyst',
-  'Business Intelligence Analyst',
   'Data Scientist',
-  'Data Engineer',
+  'Software Engineer',
+  'AI Engineer',
+  'Cybersecurity Engineer',
+  'Product Manager',
+  'Entrepreneur',
+  'Other',
 ];
 
 const TIME_COMMITMENT_OPTIONS = [
@@ -85,9 +91,9 @@ export function Onboarding() {
   const navigate = useNavigate();
 
   // Form State
-  const [subject, setSubject] = useState('Data Analytics');
+  const [subject, setSubject] = useState('Computer Science');
   const [customSubject, setCustomSubject] = useState('');
-  const [careerGoal, setCareerGoal] = useState('Data Analyst');
+  const [careerGoal, setCareerGoal] = useState('Software Engineer');
   const [customCareerGoal, setCustomCareerGoal] = useState('');
   const [timeCommitmentHrs, setTimeCommitmentHrs] = useState(15);
 

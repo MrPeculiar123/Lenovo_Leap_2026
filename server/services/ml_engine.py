@@ -265,14 +265,8 @@ class MLEngine:
     # -------------------------------------------------------------------------
 
     def _check_terminal_condition(self, profile: StudentMLProfile) -> bool:
-        """Detects if diagnostic test should conclude."""
-        if profile.questions_count >= 8:
-            return True
-        if profile.questions_count >= 6 and profile.theta_standard_error <= 0.28:
-            return True
-        if profile.consecutive_incorrect >= 3 and profile.questions_count >= 5:
-            return True
-        return False
+        """Keep the assessment length aligned with the public eight-question contract."""
+        return profile.questions_count >= 8
 
     def get_domain_summary(
         self,
@@ -284,7 +278,14 @@ class MLEngine:
             "SQL": [],
             "Python": [],
             "Statistics": [],
-            "Data Visualization": []
+            "Data Visualization": [],
+            "Algorithms": [],
+            "Software Engineering": [],
+            "Machine Learning": [],
+            "Data Engineering": [],
+            "Cybersecurity": [],
+            "Product Strategy": [],
+            "Business Analysis": []
         }
 
         # Normalize concept domain map lookup (case-insensitive)
@@ -300,10 +301,11 @@ class MLEngine:
         default_baseline = max(0.2, min(0.9, 0.5 + 0.15 * profile.theta))
 
         result: Dict[str, float] = {}
+        baseline_domains = {"SQL", "Python", "Statistics", "Data Visualization"}
         for domain, scores in domain_buckets.items():
             if scores:
                 result[domain] = round(sum(scores) / len(scores), 2)
-            else:
+            elif domain in baseline_domains:
                 result[domain] = round(default_baseline, 2)
 
         return result

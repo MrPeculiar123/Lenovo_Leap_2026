@@ -142,6 +142,105 @@
       "estimated_minutes": 20,
       "difficulty": "intermediate",
       "tags": ["dashboard", "kpi", "data-ink ratio", "progressive disclosure", "tableau", "power bi", "bi"]
+    },
+    {
+      "id": "res_algorithms_1",
+      "concept_id": "algorithms",
+      "title": "Big-O Complexity and Practical Data Structures",
+      "resource_type": "article",
+      "url_or_ref": "https://www.bigocheatsheet.com/",
+      "content_snippet": "Big-O notation describes how time or memory grows as input size increases. Hash tables provide average constant-time lookup, while a linear scan is O(n). Choose a data structure by comparing access patterns, update costs, memory, and correctness constraints rather than by memorizing one universal winner.",
+      "estimated_minutes": 25,
+      "difficulty": "intermediate",
+      "tags": ["algorithms", "big o", "complexity", "hash table", "data structures"]
+    },
+    {
+      "id": "res_testing_1",
+      "concept_id": "software_testing",
+      "title": "Python Testing with pytest",
+      "resource_type": "article",
+      "url_or_ref": "https://docs.pytest.org/en/stable/getting-started.html",
+      "content_snippet": "Unit tests isolate a function and verify known behavior quickly. Integration tests verify boundaries such as APIs and databases. A reliable suite uses clear fixtures, deterministic assertions, failure messages, and a small fast unit layer before slower end-to-end checks.",
+      "estimated_minutes": 20,
+      "difficulty": "beginner",
+      "tags": ["testing", "pytest", "unit tests", "integration tests", "reliability"]
+    },
+    {
+      "id": "res_ml_fundamentals_1",
+      "concept_id": "ml_fundamentals",
+      "title": "Machine Learning Model Evaluation and Generalization",
+      "resource_type": "article",
+      "url_or_ref": "https://scikit-learn.org/stable/model_selection.html",
+      "content_snippet": "Separate training, validation, and test data to measure generalization. A model that performs well on training data but poorly on unseen data is likely overfitting. Choose metrics that reflect the decision, inspect data leakage, and compare against a simple baseline before trusting a complex model.",
+      "estimated_minutes": 25,
+      "difficulty": "intermediate",
+      "tags": ["machine learning", "overfitting", "validation", "test set", "generalization"]
+    },
+    {
+      "id": "res_cybersecurity_1",
+      "concept_id": "cybersecurity_fundamentals",
+      "title": "OWASP Secure Coding and Least Privilege",
+      "resource_type": "article",
+      "url_or_ref": "https://owasp.org/www-project-top-ten/",
+      "content_snippet": "Secure systems reduce attack surface with least privilege, strong authentication, safe input handling, parameterized queries, careful secret management, and useful audit logs. Treat every external value as untrusted and keep authorization decisions on the server.",
+      "estimated_minutes": 25,
+      "difficulty": "intermediate",
+      "tags": ["cybersecurity", "owasp", "least privilege", "sql injection", "secure coding"]
+    },
+    {
+      "id": "res_product_strategy_1",
+      "concept_id": "product_strategy",
+      "title": "Product Discovery, Outcomes, and Prioritization",
+      "resource_type": "article",
+      "url_or_ref": "https://www.productplan.com/glossary/product-discovery/",
+      "content_snippet": "Good product decisions begin with a user problem and a measurable outcome. Compare opportunities using evidence, expected impact, confidence, and effort. Prefer a small experiment that can change your decision over a large feature commitment made from assumptions.",
+      "estimated_minutes": 20,
+      "difficulty": "beginner",
+      "tags": ["product management", "discovery", "prioritization", "outcomes", "user problems"]
+    },
+    {
+      "id": "res_business_validation_1",
+      "concept_id": "business_validation",
+      "title": "Experiment Design and Evidence-Based Validation",
+      "resource_type": "interactive_exercise",
+      "url_or_ref": "https://www.strategyzer.com/library/the-value-proposition-canvas",
+      "content_snippet": "Validate a business assumption by stating the hypothesis, identifying the target user, defining the behavior that would count as evidence, and choosing a measurable success threshold before observing results. Repeated user behavior or meaningful commitment is stronger evidence than enthusiastic opinions alone.",
+      "estimated_minutes": 25,
+      "difficulty": "intermediate",
+      "tags": ["entrepreneurship", "experiments", "hypothesis", "validation", "customer discovery"]
+    },
+    {
+      "id": "res_data_engineering_1",
+      "concept_id": "data_engineering",
+      "title": "Reliable Data Pipelines and Schema Evolution",
+      "resource_type": "article",
+      "url_or_ref": "https://docs.getdbt.com/docs/build/incremental-models",
+      "content_snippet": "Reliable pipelines validate schemas at boundaries, make transformations observable, and design retryable steps to be idempotent. Handle late data, duplicates, and schema evolution deliberately so downstream consumers receive predictable outputs.",
+      "estimated_minutes": 25,
+      "difficulty": "advanced",
+      "tags": ["data engineering", "pipelines", "etl", "schema evolution", "idempotency"]
+    },
+    {
+      "id": "res_python_basics_1",
+      "concept_id": "python_basics",
+      "title": "Python Fundamentals: Control Flow and Functions",
+      "resource_type": "article",
+      "url_or_ref": "https://docs.python.org/3/tutorial/controlflow.html",
+      "content_snippet": "Python fundamentals include truth values, conditionals, loops, functions, and exceptions. Prefer small functions with clear inputs and outputs, validate external values, and use exceptions to handle expected failure boundaries without hiding programming errors.",
+      "estimated_minutes": 25,
+      "difficulty": "beginner",
+      "tags": ["python", "control flow", "functions", "exceptions", "programming fundamentals"]
+    },
+    {
+      "id": "res_python_data_structures_1",
+      "concept_id": "python_data_structures",
+      "title": "Python Lists, Dictionaries, Sets, and Tuples",
+      "resource_type": "article",
+      "url_or_ref": "https://docs.python.org/3/tutorial/datastructures.html",
+      "content_snippet": "Lists preserve order and support indexed access, dictionaries map keys to values, sets store unique items, and tuples provide immutable sequences. Choose a structure based on lookup, ordering, uniqueness, and mutation requirements.",
+      "estimated_minutes": 25,
+      "difficulty": "beginner",
+      "tags": ["python", "lists", "dictionaries", "sets", "tuples", "data structures"]
     }
   ]
 }

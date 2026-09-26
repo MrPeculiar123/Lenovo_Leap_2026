@@ -28,6 +28,7 @@ try:
     from schemas.agent_outputs import GeneratedQuestionSchema
     from services.answer_evaluator import evaluate_answer
     from core.logger import workflow_log
+    from services.assessment_rl import concept_for_action, target_for_action
 except ImportError:
     from server.agent.state import StudentState, QuestionItem
     from server.agent.prompts import format_assessment_prompt
@@ -37,6 +38,7 @@ except ImportError:
     from server.schemas.agent_outputs import GeneratedQuestionSchema
     from server.services.answer_evaluator import evaluate_answer
     from server.core.logger import workflow_log
+    from server.services.assessment_rl import concept_for_action, target_for_action
 
 # Load environment variables
 for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent.parent / ".env"]:
@@ -98,6 +100,7 @@ get_nvidia_client = get_llm_client
 def select_next_concept(state: StudentState) -> str:
     """Selects next concept using DAG traversal or unassessed career requirements."""
     target_career = state.get("target_career", "Data Analyst")
+    language = state.get("language") or state.get("primary_language", "English")
     role = career_benchmarks_service.get_role(target_career)
     critical_concepts = role.critical_concepts if role else []
     concept_mastery = state.get("concept_mastery", {})
@@ -152,6 +155,7 @@ def generate_question(
     asked_ids = state.get("asked_question_ids", [])
     perceived_level = state.get("perceived_level", "Intermediate")
     target_career = state.get("target_career", "Data Analyst")
+    language = state.get("language") or state.get("primary_language", "English")
     preferred_types = state.get("preferred_question_types", ["MCQ"])
     q_type = preferred_types[0] if preferred_types else "MCQ"
 
@@ -171,6 +175,7 @@ def generate_question(
                 question_type=q_type,
                 perceived_level=perceived_level,
                 target_career=target_career,
+                language=language,
                 step=step,
                 asked_questions=asked_ids
             )
@@ -208,13 +213,15 @@ def generate_question(
     cached_q = knowledge_graph.get_question_for_concept(
         concept_id=concept_id,
         asked_question_ids=asked_ids,
-        preferred_type=q_type
+        preferred_type=q_type,
+        difficulty_target=difficulty,
     )
     if cached_q:
+        localized_question = cached_q.localized_questions.get(language, cached_q.question)
         return {
             "id": cached_q.id,
             "concept_id": cached_q.concept_id,
-            "question": cached_q.question,
+            "question": localized_question,
             "options": cached_q.options,
             "correct_answer": cached_q.correct_answer,
             "explanation": cached_q.explanation,
@@ -276,8 +283,10 @@ def assessment_node(state: StudentState) -> Dict[str, Any]:
             "ml_profile": profile.to_dict()
         }
 
-    next_concept_id = select_next_concept(state)
+    action = state.get("assessment_action") or "SAME_DIFFICULTY"
+    next_concept_id = concept_for_action(state, action, select_next_concept(state))
     target_b, target_a = compute_target_parameters(profile)
+    target_b = target_for_action(target_b, action)
 
     question = generate_question(
         concept_id=next_concept_id,

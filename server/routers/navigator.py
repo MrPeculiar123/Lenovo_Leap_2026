@@ -5,10 +5,12 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from models.assessment import AssessmentSession
+from models.feedback import FeedbackLog
 from models.user import User, UserProfile
 from routers.auth import get_current_user
 from schemas.navigator import (
@@ -16,9 +18,23 @@ from schemas.navigator import (
     StartAssessmentRequest,
     SubmitAnswerRequest,
     TutorChatRequest,
+    TutorFeedbackRequest,
     PlanProgressRequest,
 )
 from core.config import settings
+from services.career_benchmarks import career_benchmarks
+from services.checkpoint_store import get_checkpointer
+from services.assessment_rl import (
+    ASSESSMENT_POLICY_NAME,
+    build_assessment_context,
+    calculate_assessment_reward,
+)
+from services.rl_policy_service import RLPolicyService
+from services.tutor_rl import (
+    TUTOR_POLICY_NAME,
+    build_tutor_context,
+    calculate_tutor_reward,
+)
 
 try:
     from agent.graph import get_adaptive_learning_graph, load_persisted_state, persist_tutor_history, update_persisted_state, run_remediation_pipeline_async
@@ -82,6 +98,7 @@ def _normalize_tutor_history(history: Any) -> list[Dict[str, str]]:
         normalized.append({
             "role": "user" if turn.get("role") == "user" else "assistant",
             "content": str(content),
+            **({"message_id": str(turn["message_id"])} if turn.get("message_id") else {}),
         })
     return normalized[-10:]
 
@@ -113,6 +130,8 @@ def _assessment_response(session: AssessmentSession, state: StudentState) -> Dic
         "tutor_chat_history": _normalize_tutor_history(state.get("tutor_chat_history", [])),
         "tutor_explanation_localized": state.get("tutor_explanation_localized", ""),
     }
+    if state.get("assessment_action"):
+        response["adaptation"] = {"strategy": state["assessment_action"]}
     if settings.DEBUG:
         response["_debug"] = {
             "target_career": state.get("target_career"),
@@ -120,9 +139,6 @@ def _assessment_response(session: AssessmentSession, state: StudentState) -> Dic
             "language": state.get("language"),
             "question_source": question.get("source") if question else None,
             "assessment_model": state.get("assessment_model", "gemini-3.5-flash-lite"),
-            "theta": (state.get("ml_profile") or {}).get("theta"),
-            "concept_mastery": state.get("concept_mastery", {}),
-            "domain_scores": state.get("domain_scores", {}),
         }
     return response
 
@@ -260,7 +276,30 @@ async def start_assessment(
     """Creates an attempt or resumes the user's latest unfinished attempt."""
     session = None if req.restart else _latest_in_progress(current_user, db, lock=False)
     if session:
-        state = await _state_for_session(session)
+        try:
+            state = await _state_for_session(session)
+        except HTTPException:
+            # A failed first LLM call can leave SQL metadata without a checkpoint.
+            # Abandon that attempt so refresh can create a clean recoverable one.
+            session.status = "abandoned"
+            session.last_activity_at = datetime.utcnow()
+            db.commit()
+            session = None
+        if session is None:
+            return await start_assessment(req.model_copy(update={"restart": True}), current_user, db)
+        if not state.get("is_assessment_complete") and not state.get("current_question"):
+            try:
+                if not state.get("assessment_action"):
+                    state["assessment_action"] = RLPolicyService(db).select_action(
+                        ASSESSMENT_POLICY_NAME,
+                        build_assessment_context(state),
+                    )
+                state = await get_adaptive_learning_graph().ainvoke(state, config=_graph_config(session))
+            except Exception as exc:
+                session.status = "abandoned"
+                session.last_activity_at = datetime.utcnow()
+                db.commit()
+                raise HTTPException(status_code=503, detail="Assessment recovery failed. Please start a new assessment.") from exc
         _update_session_metadata(session, state)
         db.commit()
         return _assessment_response(session, state)
@@ -280,12 +319,15 @@ async def start_assessment(
             return _assessment_response(latest_completed, await _state_for_session(latest_completed))
     req_lang = req.language or (profile.primary_language if profile else None)
     language = _normalize_language(req_lang or "English")
+    requested_career = req.target_career or (profile.career_goal if profile else "Data Analyst")
+    if not career_benchmarks.get_role(requested_career):
+        raise HTTPException(status_code=422, detail="Unsupported career path. Complete onboarding with a supported pathway.")
 
     session = AssessmentSession(
         user_id=current_user.id,
         thread_id=f"assessment:{uuid.uuid4()}",
         subject=req.subject or (profile.subject if profile else "Data Analytics"),
-        target_career=req.target_career or (profile.career_goal if profile else "Data Analyst"),
+        target_career=requested_career,
         language=language,
     )
     db.add(session)
@@ -303,8 +345,18 @@ async def start_assessment(
             "perceived_level": req.perceived_level or state["perceived_level"],
         }
     )
+    state["assessment_action"] = RLPolicyService(db).select_action(
+        ASSESSMENT_POLICY_NAME,
+        build_assessment_context(state),
+    )
 
-    updated_state = await get_adaptive_learning_graph().ainvoke(state, config=_graph_config(session))
+    try:
+        updated_state = await get_adaptive_learning_graph().ainvoke(state, config=_graph_config(session))
+    except Exception as exc:
+        session.status = "abandoned"
+        session.last_activity_at = datetime.utcnow()
+        db.commit()
+        raise HTTPException(status_code=503, detail="Assessment could not start. Refresh to retry with a new attempt.") from exc
 
     db.refresh(session)
     _update_session_metadata(session, updated_state)
@@ -328,6 +380,18 @@ async def submit_answer(
     )
     state = await _state_for_session(session)
     if req.question_id and req.question_id == state.get("last_submitted_question_id"):
+        if not state.get("is_assessment_complete") and not state.get("current_question"):
+            next_action = RLPolicyService(db).select_action(
+                ASSESSMENT_POLICY_NAME,
+                build_assessment_context(state),
+            )
+            state = await get_adaptive_learning_graph().ainvoke(
+                {"assessment_action": next_action, "pause_after_evaluation": False},
+                config=_graph_config(session),
+            )
+            db.refresh(session)
+            _update_session_metadata(session, state)
+            db.commit()
         _update_session_metadata(session, state)
         db.commit()
         return _assessment_response(session, state)
@@ -349,9 +413,45 @@ async def submit_answer(
     question_with_answer["response_time_sec"] = req.response_time_sec or 20.0
 
     updated_state = await get_adaptive_learning_graph().ainvoke(
-        {"current_question": question_with_answer},
+        {
+            "current_question": question_with_answer,
+            "pause_after_evaluation": True,
+        },
         config=_graph_config(session),
     )
+
+    context = build_assessment_context(state, question_difficulty=current_question.get("difficulty", 0.5))
+    reward, _ = calculate_assessment_reward(state, updated_state, question_with_answer)
+    action_taken = state.get("assessment_action") or "SAME_DIFFICULTY"
+    RLPolicyService(db).update_policy(
+        ASSESSMENT_POLICY_NAME,
+        action_taken,
+        context,
+        reward,
+    )
+    db.add(
+        FeedbackLog(
+            user_id=str(current_user.id),
+            thread_id=session.thread_id,
+            concept_id=current_question.get("concept_id"),
+            policy_type="ASSESSMENT",
+            state_vector=context,
+            action_taken=action_taken,
+            reward=reward,
+            quiz_passed=1 if updated_state.get("raw_responses", [{}])[-1].get("is_correct") else 0,
+        )
+    )
+    db.commit()
+
+    if not updated_state.get("is_assessment_complete"):
+        next_action = RLPolicyService(db).select_action(
+            ASSESSMENT_POLICY_NAME,
+            build_assessment_context(updated_state, question_difficulty=current_question.get("difficulty", 0.5)),
+        )
+        updated_state = await get_adaptive_learning_graph().ainvoke(
+            {"assessment_action": next_action, "pause_after_evaluation": False},
+            config=_graph_config(session),
+        )
 
     db.refresh(session)
     _update_session_metadata(session, updated_state)
@@ -415,18 +515,85 @@ async def tutor_chat(
         raise
     state = await _state_for_session(session)
     state["language"] = _normalize_language(req.language or state.get("language") or state.get("primary_language"))
+    tutor_context = build_tutor_context(state)
+    tutor_action = RLPolicyService(db).select_action(TUTOR_POLICY_NAME, tutor_context)
+    state["tutor_action"] = tutor_action
     res = tutor_chat_node(state, student_message=req.message)
     history = _normalize_tutor_history(state.get("tutor_chat_history", []))
     history = _normalize_tutor_history(history + res.get("tutor_chat_history", []))
+    message_id = str(uuid.uuid4())
+    if history and history[-1].get("role") == "assistant":
+        history[-1]["message_id"] = message_id
     persisted_state = await persist_tutor_history(session.thread_id, history)
+    db.add(
+        FeedbackLog(
+            id=message_id,
+            user_id=str(current_user.id),
+            thread_id=session.thread_id,
+            concept_id=state.get("current_concept_id"),
+            policy_type="TUTOR",
+            state_vector=tutor_context,
+            action_taken=tutor_action,
+            reward=0.0,
+            explicit_rating=None,
+            quiz_passed=None,
+        )
+    )
+    db.commit()
     return {
         "status": "success",
         "reply": res.get("latest_tutor_reply"),
+        "message_id": message_id,
         "chat_history": _normalize_tutor_history((persisted_state or {}).get("tutor_chat_history", history)),
         "grounded_resources": state.get("grounded_resources", []),
         "target_career": state.get("target_career"),
         "language": state.get("language"),
     }
+
+
+@router.post("/tutor/feedback")
+def tutor_feedback(
+    req: TutorFeedbackRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    feedback = (
+        db.query(FeedbackLog)
+        .filter(
+            FeedbackLog.id == req.message_id,
+            FeedbackLog.user_id == str(current_user.id),
+            FeedbackLog.policy_type == "TUTOR",
+        )
+        .with_for_update()
+        .first()
+    )
+    if not feedback:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tutor interaction not found.")
+    if feedback.explicit_rating is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Feedback has already been recorded.")
+    session = (
+        db.query(AssessmentSession)
+        .filter(
+            AssessmentSession.thread_id == feedback.thread_id,
+            AssessmentSession.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tutor interaction not found.")
+
+    quiz_passed = None if feedback.quiz_passed is None else bool(feedback.quiz_passed)
+    reward = calculate_tutor_reward(req.rating, quiz_passed=quiz_passed)
+    RLPolicyService(db).update_policy(
+        TUTOR_POLICY_NAME,
+        feedback.action_taken,
+        feedback.state_vector,
+        reward,
+    )
+    feedback.explicit_rating = req.rating
+    feedback.reward = reward
+    db.commit()
+    return {"status": "success", "message_id": feedback.id, "feedback_recorded": True}
 
 
 @router.patch("/learning-plan/progress")
@@ -451,7 +618,7 @@ async def update_learning_plan_progress(
 
 
 @router.get("/assessment-history")
-def assessment_history(
+async def assessment_history(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -461,9 +628,10 @@ def assessment_history(
         .order_by(AssessmentSession.started_at.desc(), AssessmentSession.id.desc())
         .all()
     )
-    return {
-        "assessments": [
-            {
+    assessments = []
+    for session in sessions:
+        state = await _state_for_session(session)
+        assessments.append({
                 "id": session.id,
                 "subject": session.subject,
                 "target_career": session.target_career,
@@ -477,10 +645,25 @@ def assessment_history(
                     else None
                 ),
                 "plan_progress": session.plan_progress or {},
-            }
-            for session in sessions
-        ]
-    }
+                "domain_scores": state.get("domain_scores", {}),
+                "concept_mastery": state.get("concept_mastery", {}),
+            })
+    return {"assessments": assessments}
+
+
+@router.get("/health")
+def navigator_health(db: Session = Depends(get_db)):
+    checks = {"database": "ok", "checkpointing": "ok"}
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        checks["database"] = "unavailable"
+    try:
+        get_checkpointer()
+    except RuntimeError:
+        checks["checkpointing"] = "unavailable"
+    healthy = all(value == "ok" for value in checks.values())
+    return {"status": "ok" if healthy else "degraded", "checks": checks}
 
 
 @router.get("/assessment/{assessment_id}")

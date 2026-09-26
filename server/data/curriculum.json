@@ -518,6 +518,227 @@
           "explanation": "Tufte defines Data-Ink Ratio as data-ink divided by total ink used; higher is better because it minimizes chart clutter."
         }
       ]
+    },
+    {
+      "id": "algorithms",
+      "name": "Algorithms & Complexity",
+      "domain": "Algorithms",
+      "depth_level": 2,
+      "difficulty_baseline": 0.55,
+      "description": "Choosing algorithms, reasoning about time complexity, and understanding trade-offs in practical software systems.",
+      "prerequisites": ["python_data_structures"],
+      "questions": [
+        {
+          "id": "q_algo_1",
+          "concept_id": "algorithms",
+          "difficulty": 0.55,
+          "question_type": "Scenario-based",
+          "question": "You need to look up many unique user IDs repeatedly. Which structure usually provides average O(1) lookup time?",
+          "options": ["Hash table", "Unsorted list scan", "Bubble sort", "Linked-list traversal"],
+          "correct_answer": "Hash table",
+          "explanation": "A hash table uses a hash function to locate keys directly and typically provides average O(1) lookup time.",
+          "localized_questions": {
+            "Hindi": "आपको कई unique user IDs बार-बार खोजने हैं। कौन-सी structure सामान्यतः average O(1) lookup देती है?",
+            "Marathi": "अनेक unique user IDs वारंवार शोधायचे आहेत. कोणती structure साधारणपणे average O(1) lookup देते?"
+          }
+        },
+        {
+          "id": "q_algo_2",
+          "concept_id": "algorithms",
+          "difficulty": 0.65,
+          "question_type": "MCQ",
+          "question": "What does Big-O notation describe about an algorithm?",
+          "options": ["How resource use grows as input size grows", "The exact runtime on one computer", "The number of comments in code", "The programming language version"],
+          "correct_answer": "How resource use grows as input size grows",
+          "explanation": "Big-O describes asymptotic growth of time or space requirements as input size increases."
+        }
+      ]
+    },
+    {
+      "id": "software_testing",
+      "name": "Software Testing & Reliability",
+      "domain": "Software Engineering",
+      "depth_level": 2,
+      "difficulty_baseline": 0.5,
+      "description": "Using unit tests, integration tests, validation, and observable failure handling to build reliable software.",
+      "prerequisites": ["python_basics"],
+      "questions": [
+        {
+          "id": "q_test_1",
+          "concept_id": "software_testing",
+          "difficulty": 0.5,
+          "question_type": "Scenario-based",
+          "question": "Which test is the best first choice for checking one pure function with known inputs and outputs?",
+          "options": ["Unit test", "Load test", "End-to-end browser test", "Penetration test"],
+          "correct_answer": "Unit test",
+          "explanation": "A unit test isolates a small function and verifies its behavior quickly and deterministically."
+        },
+        {
+          "id": "q_test_2",
+          "concept_id": "software_testing",
+          "difficulty": 0.6,
+          "question_type": "MCQ",
+          "question": "What is the main value of an integration test?",
+          "options": ["Verifying that connected components work together", "Measuring developer typing speed", "Replacing every unit test", "Hiding service failures"],
+          "correct_answer": "Verifying that connected components work together",
+          "explanation": "Integration tests validate boundaries such as an API, database, queue, or service working with another component."
+        }
+      ]
+    },
+    {
+      "id": "ml_fundamentals",
+      "name": "Machine Learning Fundamentals",
+      "domain": "Machine Learning",
+      "depth_level": 2,
+      "difficulty_baseline": 0.6,
+      "description": "Understanding features, labels, generalization, overfitting, and evaluation of predictive models.",
+      "prerequisites": ["pandas_data_cleaning", "descriptive_stats"],
+      "questions": [
+        {
+          "id": "q_ml_1",
+          "concept_id": "ml_fundamentals",
+          "difficulty": 0.6,
+          "question_type": "Scenario-based",
+          "question": "A model performs very well on training data but poorly on unseen validation data. What is the most likely issue?",
+          "options": ["Overfitting", "Underfitting", "Data encryption", "Normalization of a username"],
+          "correct_answer": "Overfitting",
+          "explanation": "Overfitting occurs when a model memorizes training patterns and fails to generalize to unseen examples."
+        },
+        {
+          "id": "q_ml_2",
+          "concept_id": "ml_fundamentals",
+          "difficulty": 0.7,
+          "question_type": "MCQ",
+          "question": "Why should a test set remain separate from model training?",
+          "options": ["To estimate performance on unseen data", "To increase the number of labels", "To guarantee 100% accuracy", "To remove all outliers automatically"],
+          "correct_answer": "To estimate performance on unseen data",
+          "explanation": "A held-out test set provides a less biased estimate of how the trained model performs on new data."
+        }
+      ]
+    },
+    {
+      "id": "data_engineering",
+      "name": "Data Engineering Pipelines",
+      "domain": "Data Engineering",
+      "depth_level": 2,
+      "difficulty_baseline": 0.6,
+      "description": "Designing dependable data ingestion, transformation, validation, and storage workflows.",
+      "prerequisites": ["sql_joins", "python_data_structures"],
+      "questions": [
+        {
+          "id": "q_de_1",
+          "concept_id": "data_engineering",
+          "difficulty": 0.6,
+          "question_type": "Scenario-based",
+          "question": "What is the most important property of an idempotent pipeline step?",
+          "options": ["Rerunning it produces the same intended result", "It always deletes the source data", "It requires manual editing each run", "It ignores validation failures"],
+          "correct_answer": "Rerunning it produces the same intended result",
+          "explanation": "Idempotent operations can be retried safely without duplicating or corrupting their intended output."
+        },
+        {
+          "id": "q_de_2",
+          "concept_id": "data_engineering",
+          "difficulty": 0.7,
+          "question_type": "MCQ",
+          "question": "Why should an ingestion pipeline validate schema changes?",
+          "options": ["To detect incompatible data before downstream failures", "To make all columns strings", "To remove the need for monitoring", "To bypass data quality checks"],
+          "correct_answer": "To detect incompatible data before downstream failures",
+          "explanation": "Schema validation catches breaking changes at the boundary before they spread through dependent systems."
+        }
+      ]
+    },
+    {
+      "id": "cybersecurity_fundamentals",
+      "name": "Cybersecurity Fundamentals",
+      "domain": "Cybersecurity",
+      "depth_level": 1,
+      "difficulty_baseline": 0.45,
+      "description": "Applying least privilege, secure input handling, authentication, and threat-aware engineering practices.",
+      "prerequisites": ["python_basics", "relational_keys"],
+      "questions": [
+        {
+          "id": "q_security_1",
+          "concept_id": "cybersecurity_fundamentals",
+          "difficulty": 0.45,
+          "question_type": "Scenario-based",
+          "question": "Which principle gives a service only the permissions it needs to perform its task?",
+          "options": ["Least privilege", "Open access", "Shared root access", "Security through obscurity"],
+          "correct_answer": "Least privilege",
+          "explanation": "Least privilege limits the impact of mistakes or compromise by minimizing granted permissions."
+        },
+        {
+          "id": "q_security_2",
+          "concept_id": "cybersecurity_fundamentals",
+          "difficulty": 0.55,
+          "question_type": "MCQ",
+          "question": "What is the safest way to include learner text in a SQL query?",
+          "options": ["Use parameterized queries", "Concatenate the text directly", "Run the text as a shell command", "Disable database validation"],
+          "correct_answer": "Use parameterized queries",
+          "explanation": "Parameterized queries keep user values separate from SQL syntax and reduce injection risk."
+        }
+      ]
+    },
+    {
+      "id": "product_strategy",
+      "name": "Product Strategy & Prioritization",
+      "domain": "Product Strategy",
+      "depth_level": 1,
+      "difficulty_baseline": 0.4,
+      "description": "Connecting user problems, evidence, outcomes, prioritization, and measurable product decisions.",
+      "prerequisites": ["descriptive_stats", "viz_fundamentals"],
+      "questions": [
+        {
+          "id": "q_product_1",
+          "concept_id": "product_strategy",
+          "difficulty": 0.4,
+          "question_type": "Scenario-based",
+          "question": "What should a product team define before choosing between competing feature ideas?",
+          "options": ["The user problem and measurable outcome", "The color of the button", "The implementation language only", "A feature list with no evidence"],
+          "correct_answer": "The user problem and measurable outcome",
+          "explanation": "A clear problem and outcome keep prioritization tied to user value and measurable impact."
+        },
+        {
+          "id": "q_product_2",
+          "concept_id": "product_strategy",
+          "difficulty": 0.55,
+          "question_type": "MCQ",
+          "question": "Which metric best reflects whether a new feature is being repeatedly used?",
+          "options": ["Feature retention or repeat usage", "Number of lines of code", "Deployment duration only", "Team meeting count"],
+          "correct_answer": "Feature retention or repeat usage",
+          "explanation": "Repeat usage is closer to sustained user value than implementation or activity metrics."
+        }
+      ]
+    },
+    {
+      "id": "business_validation",
+      "name": "Business Validation & Experimentation",
+      "domain": "Business Analysis",
+      "depth_level": 1,
+      "difficulty_baseline": 0.45,
+      "description": "Testing assumptions with customer evidence, measurable experiments, and responsible interpretation of results.",
+      "prerequisites": ["descriptive_stats", "inferential_stats"],
+      "questions": [
+        {
+          "id": "q_business_1",
+          "concept_id": "business_validation",
+          "difficulty": 0.45,
+          "question_type": "Scenario-based",
+          "question": "What is the strongest early evidence that a proposed product solves a real problem?",
+          "options": ["Repeated behavior or commitment from the target users", "A founder's personal preference", "A large untested feature list", "A logo redesign"],
+          "correct_answer": "Repeated behavior or commitment from the target users",
+          "explanation": "Behavioral evidence or meaningful commitment is stronger validation than opinions without action."
+        },
+        {
+          "id": "q_business_2",
+          "concept_id": "business_validation",
+          "difficulty": 0.6,
+          "question_type": "MCQ",
+          "question": "Why should an experiment define a success metric before collecting results?",
+          "options": ["To reduce changing the goal after seeing the data", "To guarantee a positive result", "To avoid measuring anything", "To remove the need for a hypothesis"],
+          "correct_answer": "To reduce changing the goal after seeing the data",
+          "explanation": "Predefined success criteria reduce hindsight bias and make decisions more consistent."
+        }
+      ]
     }
   ]
 }

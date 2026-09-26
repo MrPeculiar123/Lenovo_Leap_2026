@@ -13,6 +13,12 @@ import AppShell from "../components/AppShell";
 import { api } from "../services/api";
 import Loading from "../components/Loading";
 
+const COPY = {
+  English: { eyebrow: 'Your learning cockpit', title: 'Keep moving forward.', intro: 'A clear path to your next career milestone.', readiness: 'Career readiness', ready: 'You are career ready!', assess: 'Complete an assessment to get your score.', take: 'Take assessment', next: 'Next focus', recommendations: 'Your personalized recommendations appear here after an assessment.', plan: 'View learning plan', planCard: 'Learning plan', tutor: 'Ask your AI tutor', tutorText: 'Get clear explanations and guidance whenever you are stuck.', open: 'Open', domains: 'Domain progress', domainEmpty: 'Complete an assessment to see domain-level progress.', gaps: 'Priority gaps', noGaps: 'No priority gaps reported yet.', mastery: 'Concept mastery', noMastery: 'No concept scores yet.', preview: 'Study plan preview', noPlan: 'Your plan will appear after assessment analysis.' },
+  Hindi: { eyebrow: 'आपका सीखने का केंद्र', title: 'आगे बढ़ते रहें।', intro: 'आपके अगले करियर लक्ष्य तक स्पष्ट मार्ग।', readiness: 'करियर तैयारी', ready: 'आप करियर के लिए तैयार हैं!', assess: 'स्कोर देखने के लिए आकलन पूरा करें।', take: 'आकलन लें', next: 'अगला फोकस', recommendations: 'आकलन के बाद आपकी व्यक्तिगत सिफारिशें यहाँ दिखाई देंगी।', plan: 'सीखने की योजना देखें', planCard: 'सीखने की योजना', tutor: 'AI ट्यूटर से पूछें', tutorText: 'जहाँ अटकें वहाँ स्पष्ट समझ और मार्गदर्शन पाएं।', open: 'खोलें', domains: 'डोमेन प्रगति', domainEmpty: 'डोमेन प्रगति देखने के लिए आकलन पूरा करें।', gaps: 'प्राथमिक कमियाँ', noGaps: 'अभी कोई प्राथमिक कमी नहीं मिली।', mastery: 'अवधारणा महारत', noMastery: 'अभी अवधारणा स्कोर नहीं हैं।', preview: 'योजना का पूर्वावलोकन', noPlan: 'आकलन विश्लेषण के बाद आपकी योजना दिखाई देगी।' },
+  Marathi: { eyebrow: 'तुमचे शिक्षण केंद्र', title: 'पुढे चालत राहा.', intro: 'तुमच्या पुढील करिअर टप्प्यापर्यंतचा स्पष्ट मार्ग.', readiness: 'करिअर तयारी', ready: 'तुम्ही करिअरसाठी तयार आहात!', assess: 'स्कोअर पाहण्यासाठी मूल्यांकन पूर्ण करा.', take: 'मूल्यांकन घ्या', next: 'पुढील लक्ष', recommendations: 'मूल्यांकनानंतर तुमच्या वैयक्तिक शिफारसी येथे दिसतील.', plan: 'शिक्षण योजना पहा', planCard: 'शिक्षण योजना', tutor: 'AI ट्यूटरला विचारा', tutorText: 'अडचण आल्यावर स्पष्ट स्पष्टीकरण आणि मार्गदर्शन मिळवा.', open: 'उघडा', domains: 'डोमेन प्रगती', domainEmpty: 'डोमेन प्रगती पाहण्यासाठी मूल्यांकन पूर्ण करा.', gaps: 'प्राधान्याच्या उणिवा', noGaps: 'अजून प्राधान्याची उणीव नाही.', mastery: 'संकल्पना प्रभुत्व', noMastery: 'अजून संकल्पना स्कोअर नाहीत.', preview: 'शिक्षण योजनेचा आढावा', noPlan: 'मूल्यांकन विश्लेषणानंतर तुमची योजना दिसेल.' },
+};
+
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -48,29 +54,30 @@ export default function Dashboard() {
   const topGapLabel = typeof topGap === "string"
     ? topGap
     : topGap?.career_skill || topGap?.root_cause_concept || "Discover your strengths";
+  const copy = COPY[data?.language] || COPY.English;
   return (
     <AppShell>
       <div className="mb-8">
         <p className="mb-2 text-sm font-medium text-indigo-600">
-          Your learning cockpit
+          {copy.eyebrow}
         </p>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-          Keep moving forward.
+          {copy.title}
         </h1>
         <p className="mt-2 text-slate-500">
-          A clear path to your next career milestone.
+          {copy.intro}
         </p>
       </div>
       <div className="grid gap-5 md:grid-cols-3">
         <div className="rounded-2xl bg-indigo-600 p-6 text-white md:col-span-2">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-indigo-100">Career readiness</p>
+              <p className="text-sm text-indigo-100">{copy.readiness}</p>
               <p className="mt-3 text-5xl font-bold">{score}%</p>
               <p className="mt-2 text-sm text-indigo-100">
                 {data?.is_career_ready
-                  ? "You are career ready!"
-                  : "Complete an assessment to get your score."}
+                  ? copy.ready
+                  : copy.assess}
               </p>
             </div>
             <Target className="opacity-60" size={28} />
@@ -79,46 +86,48 @@ export default function Dashboard() {
             to="/assessment"
             className="mt-7 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-indigo-700"
           >
-            Take assessment <ArrowRight size={16} />
+            {copy.take} <ArrowRight size={16} />
           </Link>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <p className="text-sm text-slate-500">Next focus</p>
+          <p className="text-sm text-slate-500">{copy.next}</p>
           <h2 className="mt-3 text-xl font-bold">
             {topGapLabel}
           </h2>
           <p className="mt-2 text-sm text-slate-500">
-            Your personalized recommendations appear here after an assessment.
+            {copy.recommendations}
           </p>
           <Link
             to="/learning-plan"
             className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-indigo-600"
           >
-            View learning plan <ArrowRight size={15} />
+            {copy.plan} <ArrowRight size={15} />
           </Link>
         </div>
       </div>
       <div className="mt-6 grid gap-5 md:grid-cols-2">
         <Card
           icon={BookOpen}
-          title="Learning plan"
+          title={copy.planCard}
           text={
             data?.plan_summary ||
             "Build a practical plan around your goals and available time."
           }
           href="/learning-plan"
+          openLabel={copy.open}
         />
         <Card
           icon={Sparkles}
-          title="Ask your AI tutor"
-          text="Get clear explanations and guidance whenever you are stuck."
+          title={copy.tutor}
+          text={copy.tutorText}
           href="/tutor"
+          openLabel={copy.open}
         />
       </div>
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <h2 className="flex items-center gap-2 font-bold">
-            <BarChart3 size={19} className="text-indigo-600" /> Domain progress
+            <BarChart3 size={19} className="text-indigo-600" /> {copy.domains}
           </h2>
           {Object.keys(data?.domain_scores || {}).length ? (
             <div className="mt-5 space-y-4">
@@ -143,13 +152,13 @@ export default function Dashboard() {
             </div>
           ) : (
             <p className="mt-4 text-sm text-slate-500">
-              Complete an assessment to see domain-level progress.
+              {copy.domainEmpty}
             </p>
           )}
         </section>
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <h2 className="flex items-center gap-2 font-bold">
-            <CheckCircle2 size={19} className="text-indigo-600" /> Priority gaps
+            <CheckCircle2 size={19} className="text-indigo-600" /> {copy.gaps}
           </h2>
           {data?.priority_gaps?.length ? (
             <ul className="mt-4 space-y-3">
@@ -175,14 +184,14 @@ export default function Dashboard() {
             </ul>
           ) : (
             <p className="mt-4 text-sm text-slate-500">
-              No priority gaps reported yet.
+              {copy.noGaps}
             </p>
           )}
         </section>
       </div>
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="font-bold">Concept mastery</h2>
+          <h2 className="font-bold">{copy.mastery}</h2>
           {Object.keys(data?.concept_mastery || {}).length ? (
             <div className="mt-4 flex flex-wrap gap-2">
               {Object.entries(data.concept_mastery)
@@ -198,12 +207,12 @@ export default function Dashboard() {
             </div>
           ) : (
             <p className="mt-4 text-sm text-slate-500">
-              No concept scores yet.
+              {copy.noMastery}
             </p>
           )}
         </section>
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="font-bold">Study plan preview</h2>
+          <h2 className="font-bold">{copy.preview}</h2>
           {data?.study_plan?.length ? (
             <ul className="mt-4 space-y-2 text-sm text-slate-600">
               {data.study_plan.slice(0, 3).map((item, i) => (
@@ -217,7 +226,7 @@ export default function Dashboard() {
             </ul>
           ) : (
             <p className="mt-4 text-sm text-slate-500">
-              Your plan will appear after assessment analysis.
+              {copy.noPlan}
             </p>
           )}
         </section>
@@ -225,7 +234,8 @@ export default function Dashboard() {
     </AppShell>
   );
 }
-function Card({ icon: Icon, title, text, href }) {
+
+function Card({ icon: Icon, title, text, href, openLabel = "Open" }) {
   return (
     <Link
       to={href}
@@ -235,11 +245,12 @@ function Card({ icon: Icon, title, text, href }) {
       <h2 className="mt-4 font-bold">{title}</h2>
       <p className="mt-2 text-sm leading-6 text-slate-500">{text}</p>
       <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-indigo-600">
-        Open <ArrowRight size={15} />
+        {openLabel} <ArrowRight size={15} />
       </span>
     </Link>
   );
 }
+
 export function Empty({ title, text, action }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">

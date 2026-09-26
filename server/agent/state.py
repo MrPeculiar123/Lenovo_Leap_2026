@@ -108,6 +108,8 @@ class StudentState(TypedDict, total=False):
     current_step: int                     # e.g., question 1 of 8
     last_submitted_question_id: Optional[str]
     last_submission_response_time_sec: Optional[float]
+    assessment_action: Optional[str]
+    pause_after_evaluation: bool
 
     # -------------------------------------------------------------------------
     # 3. Gap Analysis & Career Mapping (Combined Node)
@@ -123,6 +125,7 @@ class StudentState(TypedDict, total=False):
     grounded_resources: Annotated[List[GroundedResource], operator.add]
     tutor_explanation_localized: str      # Explanation in Marathi / Hindi / English
     tutor_chat_history: List[Dict[str, str]] # bounded [{'role': 'user'|'assistant', 'content': '...'}]
+    tutor_action: Optional[str]
 
     # -------------------------------------------------------------------------
     # 5. Personalized Study Planning

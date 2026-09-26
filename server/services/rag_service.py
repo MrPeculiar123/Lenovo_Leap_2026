@@ -16,6 +16,12 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from pinecone import Pinecone
+try:
+    from core.config import settings
+    from services.resilience import retry_call
+except ImportError:
+    from server.core.config import settings
+    from server.services.resilience import retry_call
 
 try:
     from core.logger import workflow_log
@@ -138,17 +144,23 @@ class RAGService:
 
         started_at = time.perf_counter()
         try:
-            resp = self.genai_client.models.embed_content(
-                model="gemini-embedding-2-preview",
-                contents=query.strip(),
-                config=types.EmbedContentConfig(output_dimensionality=1536)
+            resp = retry_call(
+                lambda: self.genai_client.models.embed_content(
+                    model="gemini-embedding-2-preview",
+                    contents=query.strip(),
+                    config=types.EmbedContentConfig(output_dimensionality=1536)
+                ),
+                retries=settings.EXTERNAL_CALL_RETRIES,
             )
             query_vector = resp.embeddings[0].values
 
-            response = self.pinecone_index.query(
-                vector=query_vector,
-                top_k=limit,
-                include_metadata=True
+            response = retry_call(
+                lambda: self.pinecone_index.query(
+                    vector=query_vector,
+                    top_k=limit,
+                    include_metadata=True
+                ),
+                retries=settings.EXTERNAL_CALL_RETRIES,
             )
 
             results = []

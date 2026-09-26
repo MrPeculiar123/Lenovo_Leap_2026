@@ -25,11 +25,13 @@ try:
     from agent.prompts import format_regional_tutor_prompt, format_tutor_chat_prompt
     from services.rag_service import rag_service
     from core.logger import workflow_log
+    from services.tutor_rl import STRATEGY_INSTRUCTIONS
 except ImportError:
     from server.agent.state import StudentState, GroundedResource
     from server.agent.prompts import format_regional_tutor_prompt, format_tutor_chat_prompt
     from server.services.rag_service import rag_service
     from server.core.logger import workflow_log
+    from server.services.tutor_rl import STRATEGY_INSTRUCTIONS
 
 # Load environment variables
 for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent.parent / ".env"]:
@@ -95,15 +97,31 @@ def _clean_thinking_blocks(raw_text: str) -> str:
     return raw_text
 
 
+def extract_clean_text(response: Any) -> str:
+    """Extract text from Gemini strings, blocks, dictionaries, and message objects."""
+    if response is None:
+        return ""
+    if isinstance(response, str):
+        return response
+    if isinstance(response, list):
+        return "".join(extract_clean_text(item) for item in response)
+    if isinstance(response, dict):
+        if "text" in response:
+            return extract_clean_text(response["text"])
+        if "content" in response:
+            return extract_clean_text(response["content"])
+        return ""
+    content = getattr(response, "content", None)
+    if content is not None and content is not response:
+        return extract_clean_text(content)
+    text = getattr(response, "text", None)
+    if text is not None and text is not response:
+        return extract_clean_text(text)
+    return ""
+
+
 def _message_text(response: Any) -> str:
-    """Safely extracts text from a string response or content block list."""
-    content = getattr(response, "content", response)
-    if isinstance(content, list):
-        return "".join(
-            item.get("text", "") if isinstance(item, dict) else str(item)
-            for item in content
-        )
-    return str(content)
+    return extract_clean_text(response)
 
 
 def content_tutor_node(state: StudentState) -> Dict[str, Any]:
@@ -170,8 +188,8 @@ def content_tutor_node(state: StudentState) -> Dict[str, Any]:
             ]
             started_at = time.perf_counter()
             response = llm_client.invoke(messages)
-            if response and response.content:
-                explanation = _clean_thinking_blocks(_message_text(response))
+            if response:
+                explanation = _clean_thinking_blocks(extract_clean_text(response))
                 workflow_log(logging.INFO, "[LLM]", model=target_model, duration_ms=round((time.perf_counter() - started_at) * 1000), status="success", schema="tutor_text")
         except Exception as e:
             workflow_log(logging.WARNING, "[LLM]", model=target_model, status="fallback", schema="tutor_text", duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None)
@@ -230,6 +248,7 @@ def tutor_chat_node(
 
     target_model = model_override or state.get("tutor_model") or DEFAULT_TUTOR_MODEL
     llm_client = get_llm_client(model_name=target_model)
+    tutor_action = state.get("tutor_action") or "DIRECT_EXPLANATION"
 
     assistant_reply = ""
     if llm_client:
@@ -241,6 +260,10 @@ def tutor_chat_node(
                 priority_gaps=priority_gaps,
                 grounded_context=grounded_context
             )
+            system_prompt = (
+                f"{system_prompt}\n\nTeaching strategy instruction: "
+                f"{STRATEGY_INSTRUCTIONS[tutor_action]}"
+            )
             messages = [SystemMessage(content=system_prompt)]
             for turn in history[-4:]:
                 if turn.get("role") == "user":
@@ -251,8 +274,8 @@ def tutor_chat_node(
 
             started_at = time.perf_counter()
             response = llm_client.invoke(messages)
-            if response and response.content:
-                assistant_reply = _clean_thinking_blocks(_message_text(response))
+            if response:
+                assistant_reply = _clean_thinking_blocks(extract_clean_text(response))
                 workflow_log(logging.INFO, "[LLM]", model=target_model, duration_ms=round((time.perf_counter() - started_at) * 1000), status="success", schema="tutor_text")
         except Exception as e:
             workflow_log(logging.WARNING, "[LLM]", model=target_model, status="fallback", schema="tutor_text", duration_ms=round((time.perf_counter() - started_at) * 1000) if "started_at" in locals() else None)
@@ -268,4 +291,5 @@ def tutor_chat_node(
     return {
         "tutor_chat_history": new_turns,
         "latest_tutor_reply": assistant_reply
+        ,"tutor_action": tutor_action
     }

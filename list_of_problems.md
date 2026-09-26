@@ -11,7 +11,11 @@ The completed fixes from Phases 1–3 remain part of this checklist and should n
 - [x] Tutor history is persisted and restored in the tutor UI.
 - [x] Tutor responses expose grounded resources and support language selection.
 - [x] Learning-plan and tutor resources open through safe external links when a URL is available.
-- [x] Onboarding choices are aligned with the four benchmark-backed data pathways: Data Analyst, Business Intelligence Analyst, Data Scientist, and Data Engineer.
+- [x] Onboarding choices preserve the original broad pathways: Data Analyst, Data Scientist, Software Engineer, AI Engineer, Cybersecurity Engineer, Product Manager, and Entrepreneur.
+- [x] Benchmark profiles map the restored pathways to grounded Python, SQL, statistics, and visualization curriculum/resources.
+- [x] Unsupported career paths are rejected instead of silently falling back to Data Analyst.
+- [x] Progress compares readiness across persisted assessment attempts, and the learning plan exposes a targeted reassessment entry point.
+- [x] Phase 6 includes health endpoints, bounded external-service retries, offline backend contract tests, setup documentation, and environment examples.
 - [ ] Add broader non-data career packages or explicitly keep them out of onboarding until curriculum, benchmarks, questions, and resources exist.
 
 ## Priority 0: Runtime and Workflow Blockers
@@ -399,6 +403,8 @@ The completed fixes from Phases 1–3 remain part of this checklist and should n
 - Create a sandboxed code evaluation service only after defining strict security limits.
 - `client/src/pages/Assessment.jsx`
 
+**Current status:** Deliberately not enabled. Coding-labelled items remain safe multiple-choice diagnostics; arbitrary learner code is not executed in the API process. A separate sandbox service with strict resource, filesystem, network, and process limits is required before this item can be marked complete.
+
 ---
 
 ### P4-04: Subject and career support is narrower than onboarding implies
@@ -448,6 +454,8 @@ The completed fixes from Phases 1–3 remain part of this checklist and should n
 
 **Potential solution:** Use secure httpOnly cookies with CSRF protection, or document and mitigate the current bearer-token design for the hackathon.
 
+**Current status:** Documented as a production hardening requirement; the current hackathon bearer-token contract remains unchanged.
+
 ---
 
 ### P5-02: CORS and deployment configuration need production boundaries
@@ -493,6 +501,8 @@ The completed fixes from Phases 1–3 remain part of this checklist and should n
 - Create fixtures for database and checkpoint isolation.
 - Create client tests or Playwright tests.
 - Separate offline deterministic tests from live integration tests.
+
+**Current status:** Added `server/tests`, `server/pytest.ini`, and offline service contract tests. Full database/checkpoint/API/browser coverage remains a follow-up.
 
 **Minimum test coverage:**
 
