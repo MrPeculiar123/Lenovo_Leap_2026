@@ -16,8 +16,12 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from pinecone import Pinecone
-from core.config import settings
-from services.resilience import retry_call
+try:
+    from core.config import settings
+    from services.resilience import retry_call
+except ImportError:
+    from server.core.config import settings
+    from server.services.resilience import retry_call
 
 try:
     from core.logger import workflow_log

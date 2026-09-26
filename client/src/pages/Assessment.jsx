@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import AppShell from '../components/AppShell';
 import { api } from '../services/api';
 import { Empty } from './Dashboard';
 
 const completedSession = session => session?.is_assessment_complete ?? session?.is_complete;
+
+const adaptationMessages = {
+  EASIER_QUESTION: 'Adapting difficulty...',
+  SAME_DIFFICULTY: 'Keeping the difficulty at the right pace...',
+  HARDER_QUESTION: 'Moving to a more challenging question...',
+  PREREQUISITE_QUESTION: 'Exploring a prerequisite concept...',
+};
 
 const COPY = {
   English: { eyebrow: 'Skill check', title: 'Assessment', intro: 'Understand where you are today so we can shape the right path.', restoring: 'Restoring your assessment...', complete: 'Assessment complete', completeText: 'Your readiness profile is ready. Review your results or start a new attempt when you are ready.', retryPlan: 'Retry plan generation', newAttempt: 'Start new assessment', adaptive: 'Adaptive', submit: 'Submit answer', saving: 'Saving...', path: 'Path', subject: 'Subject', language: 'Language', question: 'Question' },
@@ -115,6 +123,10 @@ export default function Assessment() {
   const question = session?.question || session?.current_question;
   const hasPlan = Boolean(session?.study_plan?.length || session?.plan?.study_plan?.length);
   const copy = COPY[session?.language] || COPY.English;
+  const adaptationMessage = adaptationMessages[session?.adaptation?.strategy];
+  const formattedQuestion = (question?.question || '')
+    .replace(/```(\w+)?\s*/g, '```$1\n')
+    .replace(/(\}\]|\))\s+(?=[a-zA-Z_])/g, '$1\n');
 
   return (
     <AppShell>
@@ -155,7 +167,10 @@ export default function Assessment() {
               <span className="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">{copy.adaptive}</span>
             </div>
             <p className="mb-3 text-xs text-slate-400">{copy.path}: {session.target_career || 'Unknown'} | {copy.subject}: {session.subject || 'Unknown'} | {copy.language}: {session.language || 'Unknown'}</p>
-            <h2 className="text-xl font-semibold leading-8">{question?.question || 'Loading question...'}</h2>
+            {adaptationMessage && <p className="mb-3 text-xs text-indigo-600">{adaptationMessage}</p>}
+            <div className="prose prose-slate max-w-none text-lg font-semibold text-slate-900">
+              <ReactMarkdown>{formattedQuestion || 'Loading question...'}</ReactMarkdown>
+            </div>
             {session._debug && (
               <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
                 Career: {session._debug.target_career} | Subject: {session._debug.subject} | Language: {session._debug.language} | Model: {session._debug.assessment_model}

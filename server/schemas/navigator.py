@@ -137,6 +137,18 @@ class TutorChatRequest(BaseModel):
         return normalized
 
 
+class TutorFeedbackRequest(BaseModel):
+    message_id: str = Field(..., min_length=1, max_length=36)
+    rating: int
+
+    @field_validator("rating")
+    @classmethod
+    def _validate_rating(cls, value: int) -> int:
+        if value not in {-1, 1}:
+            raise ValueError("rating must be 1 or -1")
+        return value
+
+
 class PlanProgressRequest(BaseModel):
     day: int = Field(ge=1, le=7)
     completion_status: str

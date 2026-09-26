@@ -30,6 +30,8 @@ export default function Tutor() {
   const [error, setError] = useState('');
   const [language, setLanguage] = useState('English');
   const [resources, setResources] = useState([]);
+  const [feedback, setFeedback] = useState({});
+  const [pendingFeedback, setPendingFeedback] = useState({});
   const loadingStarted = useRef(false);
   const sendingRef = useRef(false);
 
@@ -58,13 +60,35 @@ export default function Tutor() {
     setError('');
     try {
       const result = await api.tutorChat(text, language);
-      setMessages(normalizeMessages(result.chat_history));
+      const nextMessages = normalizeMessages(result.chat_history);
+      const lastMessageIndex = nextMessages.length - 1;
+      if (result.message_id && nextMessages[lastMessageIndex]?.role === 'assistant') {
+        nextMessages[lastMessageIndex] = { ...nextMessages[lastMessageIndex], message_id: result.message_id };
+      }
+      setMessages(nextMessages);
       setResources(result.grounded_resources || resources);
     } catch (err) {
       setError(err.message);
     } finally {
       setSending(false);
       sendingRef.current = false;
+    }
+  };
+
+  const submitFeedback = async (messageId, rating) => {
+    if (feedback[messageId] || pendingFeedback[messageId]) return;
+    setPendingFeedback(current => ({ ...current, [messageId]: true }));
+    try {
+      await api.submitTutorFeedback(messageId, rating);
+      setFeedback(current => ({ ...current, [messageId]: 'Feedback recorded' }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPendingFeedback(current => {
+        const next = { ...current };
+        delete next[messageId];
+        return next;
+      });
     }
   };
 
@@ -105,6 +129,16 @@ export default function Tutor() {
                     <div className={`tutor-markdown ${isUser ? 'tutor-markdown-user' : ''}`}>
                       <ReactMarkdown>{content}</ReactMarkdown>
                     </div>
+                    {!isUser && message.message_id && (
+                      feedback[message.message_id] ? (
+                        <p className="mt-2 text-xs text-slate-500">{feedback[message.message_id]}</p>
+                      ) : (
+                        <div className="mt-3 flex gap-2 text-xs">
+                          <button type="button" disabled={pendingFeedback[message.message_id]} onClick={() => submitFeedback(message.message_id, 1)} className="text-slate-500 hover:text-indigo-600 disabled:opacity-50">👍 Helpful</button>
+                          <button type="button" disabled={pendingFeedback[message.message_id]} onClick={() => submitFeedback(message.message_id, -1)} className="text-slate-500 hover:text-rose-600 disabled:opacity-50">👎 Not helpful</button>
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
               );

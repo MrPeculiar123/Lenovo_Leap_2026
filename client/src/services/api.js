@@ -1,4 +1,4 @@
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
 export class ApiError extends Error {
   constructor(message, status, detail = null) {
@@ -44,4 +44,5 @@ export const api = {
   updatePlanProgress: (day, completion_status) => request('/navigator/learning-plan/progress', { method: 'PATCH', body: JSON.stringify({ day, completion_status }) }),
   analyzeAndPlan: (payload = {}) => request('/navigator/analyze-and-plan', { method: 'POST', body: JSON.stringify(payload) }),
   tutorChat: (message, language) => request('/navigator/tutor/chat', { method: 'POST', body: JSON.stringify({ message, language }) }),
+  submitTutorFeedback: (message_id, rating) => request('/navigator/tutor/feedback', { method: 'POST', body: JSON.stringify({ message_id, rating }) }),
 };

@@ -247,7 +247,8 @@ class KnowledgeGraph:
         self,
         concept_id: str,
         asked_question_ids: Optional[List[str]] = None,
-        preferred_type: Optional[str] = None
+        preferred_type: Optional[str] = None,
+        difficulty_target: Optional[float] = None
     ) -> Optional[DiagnosticQuestion]:
         """
         Selects an unasked diagnostic question for a concept.
@@ -272,7 +273,10 @@ class KnowledgeGraph:
         if preferred_type:
             type_matched = [q for q in available if q.question_type.lower() == preferred_type.lower()]
             if type_matched:
-                return type_matched[0]
+                available = type_matched
+
+        if difficulty_target is not None:
+            return min(available, key=lambda question: abs(question.difficulty - difficulty_target))
 
         return available[0]
 

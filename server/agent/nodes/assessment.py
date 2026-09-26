@@ -28,6 +28,7 @@ try:
     from schemas.agent_outputs import GeneratedQuestionSchema
     from services.answer_evaluator import evaluate_answer
     from core.logger import workflow_log
+    from services.assessment_rl import concept_for_action, target_for_action
 except ImportError:
     from server.agent.state import StudentState, QuestionItem
     from server.agent.prompts import format_assessment_prompt
@@ -37,6 +38,7 @@ except ImportError:
     from server.schemas.agent_outputs import GeneratedQuestionSchema
     from server.services.answer_evaluator import evaluate_answer
     from server.core.logger import workflow_log
+    from server.services.assessment_rl import concept_for_action, target_for_action
 
 # Load environment variables
 for env_path in [Path("server/.env"), Path(".env"), Path(__file__).parent.parent.parent / ".env"]:
@@ -211,7 +213,8 @@ def generate_question(
     cached_q = knowledge_graph.get_question_for_concept(
         concept_id=concept_id,
         asked_question_ids=asked_ids,
-        preferred_type=q_type
+        preferred_type=q_type,
+        difficulty_target=difficulty,
     )
     if cached_q:
         localized_question = cached_q.localized_questions.get(language, cached_q.question)
@@ -280,8 +283,10 @@ def assessment_node(state: StudentState) -> Dict[str, Any]:
             "ml_profile": profile.to_dict()
         }
 
-    next_concept_id = select_next_concept(state)
+    action = state.get("assessment_action") or "SAME_DIFFICULTY"
+    next_concept_id = concept_for_action(state, action, select_next_concept(state))
     target_b, target_a = compute_target_parameters(profile)
+    target_b = target_for_action(target_b, action)
 
     question = generate_question(
         concept_id=next_concept_id,
